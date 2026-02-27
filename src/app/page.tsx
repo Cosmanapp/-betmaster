@@ -805,7 +805,7 @@ export default function BetMasterApp() {
                 </div>
 
                 <Card className="bg-gray-800/50 border-gray-700">
-                  <CardHeader><CardTitle>Andamento Profitti</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-white">Andamento Profitti</CardTitle></CardHeader>
                   <CardContent>
                     {chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={250}>
@@ -834,8 +834,8 @@ export default function BetMasterApp() {
 
                 <Card className="bg-gray-800/50 border-gray-700">
                   <CardHeader>
-                    <CardTitle>Bankroll</CardTitle>
-                    <CardDescription>Il tuo capitale</CardDescription>
+                    <CardTitle className="text-white">Bankroll</CardTitle>
+                    <CardDescription className="text-gray-400">Il tuo capitale</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-4">
@@ -844,7 +844,7 @@ export default function BetMasterApp() {
                         type="number"
                         value={settings.bankroll}
                         onChange={(e) => updateSettings({ bankroll: Number(e.target.value) })}
-                        className="bg-gray-700 border-gray-600 text-2xl font-bold w-40"
+                        className="bg-gray-700 border-gray-600 text-white text-2xl font-bold w-40"
                       />
                       <span className="text-xl">€</span>
                     </div>
@@ -852,22 +852,22 @@ export default function BetMasterApp() {
                 </Card>
 
                 <Card className="bg-gray-800/50 border-gray-700">
-                  <CardHeader><CardTitle>Predefiniti</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-white">Predefiniti</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <Label>Eventi per suggerimento</Label>
-                        <Input type="number" value={settings.defaultEventsCount} onChange={(e) => updateSettings({ defaultEventsCount: Number(e.target.value) })} className="bg-gray-700 border-gray-600 mt-1" min={1} max={20} />
+                        <Label className="text-gray-200">Eventi per suggerimento</Label>
+                        <Input type="number" value={settings.defaultEventsCount} onChange={(e) => updateSettings({ defaultEventsCount: Number(e.target.value) })} className="bg-gray-700 border-gray-600 text-white mt-1" min={1} max={20} />
                       </div>
                       <div>
-                        <Label>Stake predefinito (€)</Label>
-                        <Input type="number" value={settings.defaultStake} onChange={(e) => updateSettings({ defaultStake: Number(e.target.value) })} className="bg-gray-700 border-gray-600 mt-1" min={1} />
+                        <Label className="text-gray-200">Stake predefinito (€)</Label>
+                        <Input type="number" value={settings.defaultStake} onChange={(e) => updateSettings({ defaultStake: Number(e.target.value) })} className="bg-gray-700 border-gray-600 text-white mt-1" min={1} />
                       </div>
                     </div>
                     <div>
-                      <Label>Livello Rischio</Label>
+                      <Label className="text-gray-200">Livello Rischio</Label>
                       <Select value={settings.riskLevel} onValueChange={(v) => updateSettings({ riskLevel: v as any })}>
-                        <SelectTrigger className="bg-gray-700 border-gray-600 mt-1">
+                        <SelectTrigger className="bg-gray-700 border-gray-600 text-white mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
