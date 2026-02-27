@@ -622,9 +622,9 @@ export default function BetMasterApp() {
                               <h4 className="font-bold text-yellow-400 mb-2">{ruota}</h4>
                               <div className="flex flex-wrap gap-2">
                                 {numeri.map((n: any) => (
-                                  <div key={n.numero} className="bg-gray-600 px-3 py-1 rounded text-center">
-                                    <span className="text-xl font-bold">{n.numero}</span>
-                                    <span className="text-xs text-red-400 ml-1">({n.ritardo} rit)</span>
+                                  <div key={n.numero} className="bg-gradient-to-br from-blue-500 to-blue-700 px-4 py-2 rounded-lg text-center shadow-lg">
+                                    <span className="text-xl font-bold text-white">{n.numero}</span>
+                                    <span className="text-xs text-blue-200 ml-1 block">({n.ritardo} rit)</span>
                                   </div>
                                 ))}
                               </div>

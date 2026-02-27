@@ -155,15 +155,53 @@ function generateSuggestion(ruota?: string, combination: string = 'ambo') {
   const targetRuota = ruota || 'Napoli';
   const ritardatari = ritardatariData.ritardatari[targetRuota] || [];
   
+  // Determina quanti numeri servono in base al tipo di giocata
+  const numeriRichiesti: Record<string, number> = {
+    'ambo': 2,
+    'terno': 3,
+    'quaterna': 4,
+    'cinquina': 5
+  };
+  const quanti = numeriRichiesti[combination] || 2;
+  
   let numbers: number[] = [];
   let reasoning = '';
   
+  // Prendi i ritardatari della ruota
+  const numeriRuota = ritardatari.map(r => r.numero);
+  
+  // Se non bastano, integra con i top 5 italiani
+  const topItalia = ritardatariData.aiAnalysis.numeriTop;
+  
+  numbers = [...numeriRuota];
+  
+  // Aggiungi dai top italiani fino a raggiungere il numero richiesto
+  for (const n of topItalia) {
+    if (numbers.length >= quanti) break;
+    if (!numbers.includes(n)) {
+      numbers.push(n);
+    }
+  }
+  
+  // Se ancora non bastano, aggiungi numeri casuali
+  while (numbers.length < quanti) {
+    const randomNum = Math.floor(Math.random() * 90) + 1;
+    if (!numbers.includes(randomNum)) {
+      numbers.push(randomNum);
+    }
+  }
+  
+  // Limita al numero richiesto
+  numbers = numbers.slice(0, quanti);
+  
+  // Crea motivazione
   if (ritardatari.length > 0) {
-    numbers = ritardatari.slice(0, 3).map(r => r.numero);
     reasoning = `Il ${ritardatari[0].numero} manca da ${ritardatari[0].ritardo} estrazioni su ${targetRuota}`;
+    if (numbers.length > ritardatari.length) {
+      reasoning += `. Integrato con top ritardatari italiani.`;
+    }
   } else {
-    numbers = ritardatariData.aiAnalysis.numeriTop.slice(0, 3);
-    reasoning = `Suggerimento basato sui ritardatari più attesi in Italia`;
+    reasoning = `Suggerimento basato sui ritardatari più attesi in Italia: ${topItalia.slice(0, 3).join(', ')}`;
   }
   
   return {
