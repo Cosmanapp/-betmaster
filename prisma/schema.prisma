@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Scommesse
+model Bet {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  event       String
+  sport       String
+  league      String?
+  prediction  String
+  odds        Float
+  stake       Float
+  status      String   @default("pending") // pending, won, lost, void
+  result      String?
+  profitLoss  Float?
+  confidence  Int
+  reasoning   String
+  eventDate   String
+  source      String   // daily_tip, football_journey, custom
+  updatedAt   DateTime @updatedAt
+}
+
+// Suggerimenti giornalieri
+model DailyTip {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  event       String
+  sport       String
+  league      String?
+  prediction  String
+  odds        Float
+  confidence  Int
+  reasoning   String
+  eventDate   String
+  isPlayed    Boolean  @default(false)
+  betId       String?
+  updatedAt   DateTime @updatedAt
+}
+
+// Percorso calcio europeo
+model FootballJourney {
+  id              String   @id @default(cuid())
+  isActive        Boolean  @default(false)
+  startedAt       DateTime?
+  initialBankroll Float    @default(0)
+  currentBankroll Float    @default(0)
+  targetProfit    Float    @default(0)
+  currentStreak   String?
+  streakCount     Int      @default(0)
+  totalBets       Int      @default(0)
+  wins            Int      @default(0)
+  losses          Int      @default(0)
+  draws           Int      @default(0)
+  selectedLeagues String   // JSON array
+  lastBetId       String?
+  updatedAt       DateTime @updatedAt
+}
+
+// Impostazioni utente
+model Settings {
+  id                  String   @id @default(cuid())
+  defaultEventsCount  Int      @default(5)
+  defaultStake        Float    @default(10)
+  initialBankroll     Float    @default(100)
+  preferredSports     String   @default("football,basketball,tennis") // JSON array
+  riskLevel           String   @default("medium") // low, medium, high
+  darkMode            Boolean  @default(true)
+  notifications       Boolean  @default(true)
+  bankroll            Float    @default(100)
+  updatedAt           DateTime @updatedAt
+}
+
+// Dati Enalotto (cache)
+model EnalottoData {
+  id          String   @id @default(cuid())
+  type        String   // ritardatari, estrazione, suggestion
+  data        String   // JSON
+  fetchedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
