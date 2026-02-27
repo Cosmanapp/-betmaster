@@ -457,12 +457,12 @@ export default function BetMasterApp() {
                     {dailyTips.length > 0 ? (
                       <div className="space-y-3">
                         {dailyTips.slice(0, 3).map((tip) => (
-                          <div key={tip.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-700/50">
+                          <div key={tip.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-700/50 border border-gray-600">
                             <div>
-                              <p className="font-medium">{tip.event}</p>
-                              <p className="text-sm text-gray-400">{tip.prediction} @ {tip.odds}</p>
+                              <p className="font-medium text-white text-lg">{tip.event}</p>
+                              <p className="text-sm text-emerald-400 font-medium">{tip.prediction} @ {tip.odds}</p>
                             </div>
-                            <Badge variant={tip.confidence >= 70 ? 'default' : 'secondary'}>{tip.confidence}%</Badge>
+                            <Badge className={`${tip.confidence >= 70 ? 'bg-green-600' : 'bg-yellow-600'} text-white`}>{tip.confidence}%</Badge>
                           </div>
                         ))}
                       </div>
@@ -501,10 +501,10 @@ export default function BetMasterApp() {
                         <CardContent className="p-4">
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="flex-1">
-                              <Badge variant="outline" className="mb-2">{SPORT_LABELS[tip.sport] || tip.sport}</Badge>
-                              <h3 className="text-lg font-semibold">{tip.event}</h3>
-                              <p className="text-emerald-400 font-medium">{tip.prediction} @ {tip.odds}</p>
-                              <p className="text-sm text-gray-400 mt-2">{tip.reasoning}</p>
+                              <Badge variant="outline" className="mb-2 border-emerald-500 text-emerald-400">{SPORT_LABELS[tip.sport] || tip.sport}</Badge>
+                              <h3 className="text-lg font-semibold text-white">{tip.event}</h3>
+                              <p className="text-emerald-400 font-medium text-lg">{tip.prediction} @ {tip.odds}</p>
+                              <p className="text-sm text-gray-300 mt-2">{tip.reasoning}</p>
                             </div>
                             <div className="flex flex-col items-end gap-3">
                               <p className={`text-2xl font-bold ${tip.confidence >= 70 ? 'text-green-400' : 'text-yellow-400'}`}>{tip.confidence}%</p>
