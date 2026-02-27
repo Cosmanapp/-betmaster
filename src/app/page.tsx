@@ -172,8 +172,9 @@ export default function BetMasterApp() {
       });
       
       const data = await response.json();
+      console.log('API Response:', data);
       
-      if (data.success && data.suggestions?.length > 0) {
+      if (data.suggestions && data.suggestions.length > 0) {
         const tips = data.suggestions.map((s: any) => ({
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           event: s.event || 'Evento',
@@ -187,8 +188,11 @@ export default function BetMasterApp() {
         
         setDailyTips(tips);
         toast.success(`${tips.length} suggerimenti caricati!`);
+      } else {
+        toast.warning('Nessun suggerimento disponibile. Riprova.');
       }
     } catch (error) {
+      console.error('Errore:', error);
       toast.error('Errore nel caricamento');
     } finally {
       setIsLoading(false);
