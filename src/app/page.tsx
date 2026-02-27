@@ -80,6 +80,7 @@ export default function BetMasterApp() {
   
   const [bets, setBets] = useState<Bet[]>([]);
   const [dailyTips, setDailyTips] = useState<DailyTip[]>([]);
+  const [enalottoData, setEnalottoData] = useState<any>(null);
   const [settings, setSettings] = useState<Settings>({
     defaultEventsCount: 5,
     defaultStake: 10,
@@ -554,7 +555,10 @@ export default function BetMasterApp() {
                     try {
                       const res = await fetch('/api/enalotto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'ritardatari' }) });
                       const data = await res.json();
-                      if (data.success) toast.success('Ritardatari caricati!');
+                      if (data.success) {
+                        setEnalottoData({ type: 'ritardatari', ...data });
+                        toast.success('Ritardatari caricati!');
+                      }
                     } catch (e) { toast.error('Errore'); }
                     setIsLoading(false);
                   }} disabled={isLoading}>
@@ -568,7 +572,10 @@ export default function BetMasterApp() {
                     try {
                       const res = await fetch('/api/enalotto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'estrazione' }) });
                       const data = await res.json();
-                      if (data.success) toast.success('Estrazione caricata!');
+                      if (data.success) {
+                        setEnalottoData({ type: 'estrazione', ...data });
+                        toast.success('Estrazione caricata!');
+                      }
                     } catch (e) { toast.error('Errore'); }
                     setIsLoading(false);
                   }} disabled={isLoading}>
@@ -582,25 +589,112 @@ export default function BetMasterApp() {
                     try {
                       const res = await fetch('/api/enalotto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'suggestion', combination: 'ambo' }) });
                       const data = await res.json();
-                      if (data.success && data.suggestion) {
-                        toast.success(`Suggerimento: ${data.suggestion.numbers?.join(', ') || 'N/A'}`);
+                      if (data.success && data.data) {
+                        setEnalottoData({ type: 'suggestion', ...data });
+                        toast.success(`Suggerimento: ${data.data.numbers?.join(' - ') || 'N/A'}`);
                       }
                     } catch (e) { toast.error('Errore'); }
                     setIsLoading(false);
                   }} disabled={isLoading}>
                     <div className="text-center">
                       <Sparkles className="h-6 w-6 mx-auto mb-2" />
-                      <span>Suggerimento</span>
+                      <span>Suggerimento AI</span>
                     </div>
                   </Button>
                 </div>
 
-                <Card className="bg-gray-800/50 border-gray-700">
-                  <CardContent className="p-6 text-center text-gray-400">
-                    <p>Seleziona un'opzione sopra per caricare i dati Enalotto</p>
-                    <p className="text-sm mt-2">I risultati verranno mostrati qui</p>
-                  </CardContent>
-                </Card>
+                {/* RISULTATI ENALOTTO */}
+                {enalottoData && (
+                  <Card className="bg-gray-800/50 border-gray-700">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        {enalottoData.type === 'ritardatari' && <><Star className="h-5 w-5 text-blue-400" /> Ritardatari per Ruota</>}
+                        {enalottoData.type === 'estrazione' && <><Calendar className="h-5 w-5 text-purple-400" /> Ultima Estrazione</>}
+                        {enalottoData.type === 'suggestion' && <><Sparkles className="h-5 w-5 text-emerald-400" /> Suggerimento AI</>}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* RITARDATARI */}
+                      {enalottoData.type === 'ritardatari' && enalottoData.data?.ritardatari && (
+                        <div className="space-y-3">
+                          {Object.entries(enalottoData.data.ritardatari).filter(([_, numeri]: [string, any]) => numeri.length > 0).slice(0, 6).map(([ruota, numeri]: [string, any]) => (
+                            <div key={ruota} className="bg-gray-700/50 p-3 rounded-lg border border-gray-600">
+                              <h4 className="font-bold text-yellow-400 mb-2">{ruota}</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {numeri.map((n: any) => (
+                                  <div key={n.numero} className="bg-gray-600 px-3 py-1 rounded text-center">
+                                    <span className="text-xl font-bold">{n.numero}</span>
+                                    <span className="text-xs text-red-400 ml-1">({n.ritardo} rit)</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                          {enalottoData.data.aiAnalysis?.numeriTop && (
+                            <div className="bg-emerald-900/30 p-4 rounded-lg border border-emerald-600 mt-4">
+                              <h4 className="font-bold text-emerald-400 mb-2">🎯 Top 5 Numeri Consigliati</h4>
+                              <div className="flex gap-3 flex-wrap">
+                                {enalottoData.data.aiAnalysis.numeriTop.map((n: number) => (
+                                  <span key={n} className="bg-emerald-600 text-white px-4 py-2 rounded-full font-bold text-lg">{n}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-sm text-yellow-400 mt-2">{enalottoData.data.disclaimer}</p>
+                        </div>
+                      )}
+                      
+                      {/* ESTRAZIONE */}
+                      {enalottoData.type === 'estrazione' && enalottoData.data?.ruote && (
+                        <div className="space-y-3">
+                          <p className="text-gray-300 mb-4">📅 {enalottoData.data.data} {enalottoData.data.nota ? `- ${enalottoData.data.nota}` : ''}</p>
+                          {Object.entries(enalottoData.data.ruote).map(([ruota, numeri]: [string, any]) => (
+                            <div key={ruota} className="flex items-center gap-3 bg-gray-700/50 p-3 rounded-lg border border-gray-600">
+                              <span className="font-bold text-purple-400 w-24">{ruota}</span>
+                              <div className="flex gap-2">
+                                {numeri.map((n: number) => (
+                                  <span key={n} className="bg-purple-600 text-white px-3 py-1 rounded-full font-bold">{n}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* SUGGERIMENTO */}
+                      {enalottoData.type === 'suggestion' && enalottoData.data && (
+                        <div className="space-y-4">
+                          <div className="bg-emerald-900/30 p-6 rounded-lg border-2 border-emerald-600 text-center">
+                            <p className="text-gray-300 mb-2">Ruota: <span className="text-white font-bold">{enalottoData.data.ruota}</span></p>
+                            <p className="text-gray-300 mb-4">Giocata: <span className="text-yellow-400 font-bold">{enalottoData.data.type?.toUpperCase()}</span></p>
+                            <div className="flex justify-center gap-4">
+                              {enalottoData.data.numbers?.map((n: number) => (
+                                <span key={n} className="bg-emerald-600 text-white px-6 py-3 rounded-full font-bold text-2xl">{n}</span>
+                              ))}
+                            </div>
+                          </div>
+                          {enalottoData.data.reasoning && (
+                            <div className="bg-gray-700/50 p-4 rounded-lg">
+                              <h4 className="font-bold mb-2">📊 Analisi:</h4>
+                              <p className="text-gray-300">{enalottoData.data.reasoning}</p>
+                            </div>
+                          )}
+                          <p className="text-sm text-yellow-400">{enalottoData.data.disclaimer}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {!enalottoData && (
+                  <Card className="bg-gray-800/50 border-gray-700">
+                    <CardContent className="p-6 text-center text-gray-400">
+                      <Star className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                      <p>Seleziona un'opzione sopra per caricare i dati Enalotto</p>
+                      <p className="text-sm mt-2">I risultati verranno mostrati qui</p>
+                    </CardContent>
+                  </Card>
+                )}
               </motion.div>
             )}
             
