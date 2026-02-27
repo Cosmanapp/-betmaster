@@ -363,7 +363,7 @@ export default function BetMasterApp() {
                       <div className="flex items-center gap-3">
                         <div className="rounded-lg bg-emerald-500/20 p-2"><DollarSign className="h-5 w-5 text-emerald-400" /></div>
                         <div>
-                          <p className="text-sm text-gray-400">Bankroll</p>
+                          <p className="text-sm text-gray-300">Bankroll</p>
                           <p className="text-xl font-bold text-emerald-400">€{settings.bankroll.toFixed(2)}</p>
                         </div>
                       </div>
@@ -375,7 +375,7 @@ export default function BetMasterApp() {
                       <div className="flex items-center gap-3">
                         <div className="rounded-lg bg-blue-500/20 p-2"><Trophy className="h-5 w-5 text-blue-400" /></div>
                         <div>
-                          <p className="text-sm text-gray-400">Vincenti</p>
+                          <p className="text-sm text-gray-300">Vincenti</p>
                           <p className="text-xl font-bold text-blue-400">{stats.wins}</p>
                         </div>
                       </div>
@@ -387,7 +387,7 @@ export default function BetMasterApp() {
                       <div className="flex items-center gap-3">
                         <div className="rounded-lg bg-red-500/20 p-2"><XCircle className="h-5 w-5 text-red-400" /></div>
                         <div>
-                          <p className="text-sm text-gray-400">Perdenti</p>
+                          <p className="text-sm text-gray-300">Perdenti</p>
                           <p className="text-xl font-bold text-red-400">{stats.losses}</p>
                         </div>
                       </div>
@@ -399,7 +399,7 @@ export default function BetMasterApp() {
                       <div className="flex items-center gap-3">
                         <div className="rounded-lg bg-yellow-500/20 p-2"><TrendingUp className="h-5 w-5 text-yellow-400" /></div>
                         <div>
-                          <p className="text-sm text-gray-400">ROI</p>
+                          <p className="text-sm text-gray-300">ROI</p>
                           <p className={`text-xl font-bold ${stats.roi >= 0 ? 'text-green-400' : 'text-red-400'}`}>{stats.roi.toFixed(1)}%</p>
                         </div>
                       </div>
@@ -410,7 +410,7 @@ export default function BetMasterApp() {
                 {/* Chart */}
                 <Card className="bg-gray-800/50 border-gray-700">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-white">
                       <Activity className="h-5 w-5 text-emerald-400" />
                       Andamento Profitti
                     </CardTitle>
@@ -444,11 +444,11 @@ export default function BetMasterApp() {
                 {/* Daily Tips Preview */}
                 <Card className="bg-gray-800/50 border-gray-700">
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-white">
                       <Sparkles className="h-5 w-5 text-yellow-400" />
                       Suggerimenti del Giorno
                     </CardTitle>
-                    <Button variant="ghost" size="sm" onClick={fetchDailyTips} disabled={isLoading}>
+                    <Button variant="outline" size="sm" onClick={fetchDailyTips} disabled={isLoading} className="text-white border-gray-600">
                       <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                       Aggiorna
                     </Button>
@@ -469,7 +469,7 @@ export default function BetMasterApp() {
                     ) : (
                       <div className="text-center py-8 text-gray-400">
                         <p>Nessun suggerimento</p>
-                        <Button variant="outline" className="mt-4" onClick={fetchDailyTips}>Carica Suggerimenti</Button>
+                        <Button variant="outline" className="mt-4 text-white border-gray-600" onClick={fetchDailyTips}>Carica Suggerimenti</Button>
                       </div>
                     )}
                   </CardContent>
@@ -538,7 +538,7 @@ export default function BetMasterApp() {
                       <div className="text-center py-12">
                         <Target className="h-16 w-16 text-gray-600 mx-auto mb-4" />
                         <p className="text-gray-400">Nessun suggerimento</p>
-                        <Button variant="outline" className="mt-4" onClick={fetchDailyTips}>Carica Suggerimenti</Button>
+                        <Button variant="outline" className="mt-4 text-white border-gray-600" onClick={fetchDailyTips}>Carica Suggerimenti</Button>
                       </div>
                     )}
                   </div>
@@ -718,14 +718,14 @@ export default function BetMasterApp() {
                         <div className="flex flex-col md:flex-row justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="outline">{SPORT_LABELS[bet.sport] || bet.sport}</Badge>
+                              <Badge variant="outline" className="text-white border-gray-500">{SPORT_LABELS[bet.sport] || bet.sport}</Badge>
                               <Badge className={bet.status === 'won' ? 'bg-green-600' : bet.status === 'lost' ? 'bg-red-600' : 'bg-yellow-600'}>
                                 {bet.status === 'won' ? 'Vinta' : bet.status === 'lost' ? 'Persa' : 'In corso'}
                               </Badge>
                             </div>
-                            <h3 className="font-semibold">{bet.event}</h3>
+                            <h3 className="font-semibold text-white">{bet.event}</h3>
                             <p className="text-emerald-400">{bet.prediction} @ {bet.odds}</p>
-                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-300">
                               <span>Stake: €{bet.stake}</span>
                               {bet.profitLoss !== undefined && (
                                 <span className={bet.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}>
@@ -781,25 +781,25 @@ export default function BetMasterApp() {
                   <Card className="bg-gray-800/50 border-gray-700">
                     <CardContent className="p-4 text-center">
                       <p className="text-3xl font-bold text-blue-400">{stats.total}</p>
-                      <p className="text-sm text-gray-400">Totale</p>
+                      <p className="text-sm text-gray-300">Totale</p>
                     </CardContent>
                   </Card>
                   <Card className="bg-gray-800/50 border-gray-700">
                     <CardContent className="p-4 text-center">
                       <p className="text-3xl font-bold text-emerald-400">{stats.winRate.toFixed(1)}%</p>
-                      <p className="text-sm text-gray-400">Win Rate</p>
+                      <p className="text-sm text-gray-300">Win Rate</p>
                     </CardContent>
                   </Card>
                   <Card className="bg-gray-800/50 border-gray-700">
                     <CardContent className="p-4 text-center">
                       <p className={`text-3xl font-bold ${stats.roi >= 0 ? 'text-green-400' : 'text-red-400'}`}>{stats.roi.toFixed(1)}%</p>
-                      <p className="text-sm text-gray-400">ROI</p>
+                      <p className="text-sm text-gray-300">ROI</p>
                     </CardContent>
                   </Card>
                   <Card className="bg-gray-800/50 border-gray-700">
                     <CardContent className="p-4 text-center">
                       <p className={`text-3xl font-bold ${stats.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>€{stats.profitLoss.toFixed(2)}</p>
-                      <p className="text-sm text-gray-400">Profitto</p>
+                      <p className="text-sm text-gray-300">Profitto</p>
                     </CardContent>
                   </Card>
                 </div>
