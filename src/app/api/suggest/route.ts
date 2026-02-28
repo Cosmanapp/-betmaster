@@ -6,232 +6,380 @@ export async function POST(request: NextRequest) {
     const { count = 5, riskLevel = 'medium' } = await request.json();
     
     const now = new Date();
-    const todayStr = now.toLocaleDateString('it-IT');
     const todayISO = now.toISOString().split('T')[0];
+    const todayStr = now.toLocaleDateString('it-IT');
     
-    console.log(`[SUGGEST] Data: ${todayStr}`);
-    
-    // PARTITE SERIE A DI OGGI - VERIFICATE (28 Febbraio 2026)
-    const serieAToday = [
-      { homeTeam: 'Como', awayTeam: 'Lecce', league: 'Serie A', time: '14:00', hour: 14, minute: 0 },
-      { homeTeam: 'Hellas Verona', awayTeam: 'Napoli', league: 'Serie A', time: '17:00', hour: 17, minute: 0 },
-      { homeTeam: 'Inter', awayTeam: 'Genoa', league: 'Serie A', time: '20:45', hour: 20, minute: 45 },
-    ];
-    
-    // Prova a trovare altre partite
-    const webMatches = await searchWeb(now);
-    const apiMatches = await searchAPI(todayISO);
-    
-    // Filtra solo partite europee
-    const europeanMatches = [...webMatches, ...apiMatches].filter(m => {
-      const l = m.league?.toLowerCase() || '';
-      return l.includes('serie a') || l.includes('premier') || l.includes('la liga') || 
-             l.includes('bundesliga') || l.includes('ligue 1') || l.includes('champions') ||
-             l.includes('europa') || m.league === 'Europeo';
-    });
-    
-    // Unisci partite Serie A + altre europee
-    let allMatches = [...serieAToday];
-    
-    for (const m of europeanMatches) {
-      const exists = allMatches.some(x => 
-        x.homeTeam.toLowerCase().includes(m.homeTeam.toLowerCase()) ||
-        m.homeTeam.toLowerCase().includes(x.homeTeam.toLowerCase())
-      );
-      if (!exists) allMatches.push(m);
-    }
-    
-    console.log(`[SUGGEST] Totale partite: ${allMatches.length}`);
-    
-    // Filtro orario (ora Italia)
+    // Ora Italia (UTC+1)
     const italyHour = (now.getUTCHours() + 1) % 24;
     const italyMin = now.getUTCMinutes();
     const nowMinutes = italyHour * 60 + italyMin;
     
-    // Partite non ancora iniziate (+5 min margine)
-    const upcoming = allMatches.filter(m => (m.hour * 60 + m.minute) > nowMinutes + 5);
+    console.log(`[SUGGEST] Data: ${todayISO}, Ora Italia: ${italyHour}:${italyMin}`);
     
-    // Se tutte già iniziate, mostra comunque le future
-    const toShow = upcoming.length > 0 ? upcoming : allMatches;
+    // 1. CERCA TUTTE LE PARTITE EUROPEE DI OGGI
+    const [apiMatches, webMatches] = await Promise.all([
+      searchTheSportsDB(todayISO),
+      searchWebMatches(now)
+    ]);
     
-    console.log(`[SUGGEST] Da mostrare: ${toShow.length}`);
-    
-    // Analisi AI
-    const suggestions = [];
-    for (const m of toShow.slice(0, count + 2)) {
-      const a = await analyzeExpert(m);
-      if (a) suggestions.push(a);
+    // Unisci e rimuovi duplicati
+    let allMatches = [...apiMatches];
+    for (const m of webMatches) {
+      const exists = allMatches.some(x => 
+        teamsMatch(x.homeTeam, m.homeTeam) && teamsMatch(x.awayTeam, m.awayTeam)
+      );
+      if (!exists) allMatches.push(m);
     }
     
-    // Fallback se AI fallisce
-    if (suggestions.length === 0) {
+    console.log(`[SUGGEST] Totale partite trovate: ${allMatches.length}`);
+    
+    // 2. FILTRA SOLO PARTITE NON ANCORA INIZIATE (+5 min margine)
+    const upcomingMatches = allMatches.filter(m => {
+      const matchMinutes = m.hour * 60 + m.minute;
+      return matchMinutes > nowMinutes + 5;
+    });
+    
+    console.log(`[SUGGEST] Partite non ancora iniziate: ${upcomingMatches.length}`);
+    
+    if (upcomingMatches.length === 0) {
       return NextResponse.json({
         success: true,
-        suggestions: toShow.slice(0, count).map(m => ({
-          event: `${m.homeTeam} vs ${m.awayTeam}`,
-          league: m.league,
-          prediction: predict(m),
-          odds: m.odds || 1.70,
-          confidence: 70,
-          reasoning: `${m.homeTeam} affronta ${m.awayTeam} in ${m.league}. Calcio d'inizio alle ore ${m.time}.`,
-          sport: 'football',
-          eventDate: todayStr,
-          matchTime: m.time
-        })),
-        totalFound: toShow.length,
-        source: 'fallback',
+        suggestions: [],
+        totalFound: 0,
+        message: 'Nessuna partita disponibile al momento. Riprova più tardi.',
         date: todayStr,
         serverTime: `${italyHour}:${italyMin.toString().padStart(2, '0')}`
       });
     }
     
-    suggestions.sort((a, b) => b.confidence - a.confidence);
+    // 3. AI ANALIZZA OGNI PARTITA
+    const analyzedMatches = [];
     
-    let filtered = suggestions;
-    if (riskLevel === 'low') filtered = suggestions.filter(s => s.confidence >= 80);
-    else if (riskLevel === 'medium') filtered = suggestions.filter(s => s.confidence >= 65);
+    for (const match of upcomingMatches) {
+      console.log(`[SUGGEST] Analizzo: ${match.homeTeam} vs ${match.awayTeam}`);
+      const analysis = await analyzeMatchWithAI(match);
+      
+      if (analysis) {
+        analyzedMatches.push({
+          ...analysis,
+          matchTime: match.time
+        });
+      }
+    }
+    
+    console.log(`[SUGGEST] Partite analizzate: ${analyzedMatches.length}`);
+    
+    // 4. FILTRA PER CONFIDENCE MINIMA
+    let minConfidence = 70;
+    if (riskLevel === 'low') minConfidence = 80;
+    if (riskLevel === 'high') minConfidence = 60;
+    
+    const highConfidenceMatches = analyzedMatches.filter(m => m.confidence >= minConfidence);
+    
+    // 5. ORDINA PER CONFIDENCE (PIÙ ALTA IN CIMA)
+    highConfidenceMatches.sort((a, b) => b.confidence - a.confidence);
+    
+    console.log(`[SUGGEST] Partite con confidence >= ${minConfidence}%: ${highConfidenceMatches.length}`);
     
     return NextResponse.json({
       success: true,
-      suggestions: filtered.slice(0, count),
-      totalFound: toShow.length,
-      source: 'expert-ai',
+      suggestions: highConfidenceMatches.slice(0, count),
+      totalFound: upcomingMatches.length,
+      totalAnalyzed: analyzedMatches.length,
+      source: 'ai-expert',
       date: todayStr,
       serverTime: `${italyHour}:${italyMin.toString().padStart(2, '0')}`
     });
     
   } catch (e: any) {
     console.error('[ERROR]', e);
-    return NextResponse.json({ success: false, error: e.message, suggestions: [] }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: e.message, 
+      suggestions: [] 
+    }, { status: 500 });
   }
 }
 
-async function searchAPI(date: string): Promise<any[]> {
+// Confronta nomi squadre (gestisce variazioni)
+function teamsMatch(a: string, b: string): boolean {
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '').substring(0, 5);
+  return normalize(a) === normalize(b);
+}
+
+// Cerca su TheSportsDB (API gratuita)
+async function searchTheSportsDB(date: string): Promise<any[]> {
   try {
-    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${date}&s=Soccer`, {
-      headers: { 'User-Agent': 'BetMaster/1.0' },
-      next: { revalidate: 3600 }
-    });
-    if (!res.ok) return [];
+    const res = await fetch(
+      `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${date}&s=Soccer`,
+      { headers: { 'User-Agent': 'BetMaster/2.0' }, next: { revalidate: 3600 } }
+    );
     
+    if (!res.ok) return [];
     const data = await res.json();
     if (!data.events) return [];
     
+    const europeanLeagues = [
+      'Serie A', 'Italian Serie A', 'Italian Cup', 'Coppa Italia',
+      'Premier League', 'English Premier League', 'FA Cup', 'EFL Cup',
+      'La Liga', 'Spanish La Liga', 'Copa del Rey',
+      'Bundesliga', 'German Bundesliga', 'DFB-Pokal',
+      'Ligue 1', 'French Ligue 1', 'Coupe de France',
+      'UEFA Champions League', 'Champions League',
+      'UEFA Europa League', 'Europa League',
+      'UEFA Conference League', 'Conference League',
+      'Championship', 'EFL Championship'
+    ];
+    
     return data.events
-      .filter((e: any) => e.strStatus !== 'Match Finished' && e.strHomeTeam && e.strAwayTeam)
+      .filter((e: any) => {
+        if (e.strStatus === 'Match Finished') return false;
+        if (!e.strHomeTeam || !e.strAwayTeam) return false;
+        
+        const league = (e.strLeague || '').toLowerCase();
+        return europeanLeagues.some(l => league.includes(l.toLowerCase()));
+      })
       .map((e: any) => {
         let hour = 15, minute = 0;
         if (e.strTime) {
           const t = e.strTime.match(/(\d{1,2}):(\d{2})/);
           if (t) { hour = parseInt(t[1]); minute = parseInt(t[2]); }
         }
+        
         let league = e.strLeague || 'Europeo';
         const l = league.toLowerCase();
-        if (l.includes('italian') || l.includes('serie a')) league = 'Serie A';
-        else if (l.includes('english') || l.includes('premier')) league = 'Premier League';
-        else if (l.includes('spanish') || l.includes('la liga')) league = 'La Liga';
-        else if (l.includes('german') || l.includes('bundesliga')) league = 'Bundesliga';
-        else if (l.includes('french') || l.includes('ligue 1')) league = 'Ligue 1';
-        return { homeTeam: e.strHomeTeam, awayTeam: e.strAwayTeam, league, time: `${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`, hour, minute };
+        if (l.includes('serie a') || l.includes('italian')) league = 'Serie A';
+        else if (l.includes('premier') || l.includes('english')) league = 'Premier League';
+        else if (l.includes('la liga') || l.includes('spanish')) league = 'La Liga';
+        else if (l.includes('bundesliga') || l.includes('german')) league = 'Bundesliga';
+        else if (l.includes('ligue 1') || l.includes('french')) league = 'Ligue 1';
+        else if (l.includes('champions')) league = 'Champions League';
+        else if (l.includes('europa')) league = 'Europa League';
+        else if (l.includes('conference')) league = 'Conference League';
+        
+        return {
+          homeTeam: e.strHomeTeam,
+          awayTeam: e.strAwayTeam,
+          league,
+          time: `${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`,
+          hour,
+          minute
+        };
       });
-  } catch { return []; }
+  } catch (e) {
+    console.error('[TheSportsDB Error]', e);
+    return [];
+  }
 }
 
-async function searchWeb(now: Date): Promise<any[]> {
+// Cerca sul web partite di oggi
+async function searchWebMatches(now: Date): Promise<any[]> {
   try {
     const zai = await ZAI.create();
     const res = await zai.functions.invoke("web_search", {
-      query: `Serie A Premier League La Liga matches today ${now.getDate()} kickoff`,
-      num: 10
+      query: `Serie A Premier League La Liga Bundesliga Ligue 1 Champions League matches today February ${now.getDate()} 2026 kickoff schedule`,
+      num: 15
     });
+    
     if (!res || !Array.isArray(res)) return [];
     
     const matches: any[] = [];
+    
     for (const r of res) {
       const text = (r.snippet || '') + ' ' + (r.name || '');
-      const pats = [
-        /([A-Za-z][a-z\s]+)\s+vs\.?\s+([A-Za-z][a-z\s]+)\s+(?:at|,)\s*(\d{1,2}):(\d{2})/gi,
-        /(\d{1,2}):(\d{2})\s*[A-Z]*\s*([A-Za-z][a-z\s]+)\s+vs\.?\s+([A-Za-z][a-z\s]+)/gi,
+      
+      // Pattern per estrarre partite con orario
+      const patterns = [
+        /([A-Z][a-zA-Z\s]+)\s+vs\.?\s+([A-Z][a-zA-Z\s]+)\s+(?:at|,|-)\s*(\d{1,2}):(\d{2})/gi,
+        /(\d{1,2}):(\d{2})\s*[-–]?\s*([A-Z][a-zA-Z\s]+)\s+vs\.?\s+([A-Z][a-zA-Z\s]+)/gi,
+        /([A-Z][a-zA-Z\s]+)\s+[-–]\s+([A-Z][a-zA-Z\s]+)\s+(\d{1,2}):(\d{2})/gi,
       ];
-      for (const p of pats) {
+      
+      for (const pattern of patterns) {
         let m;
-        while ((m = p.exec(text)) !== null) {
-          let h, min, home, away;
-          if (m[1].length <= 2 && parseInt(m[1]) <= 23) {
-            h = parseInt(m[1]); min = parseInt(m[2]); home = m[3].trim(); away = m[4].trim();
-          } else {
-            home = m[1].trim(); away = m[2].trim(); h = parseInt(m[3]); min = parseInt(m[4]);
+        while ((m = pattern.exec(text)) !== null) {
+          let home, away, hour, minute;
+          
+          if (m[1] && m[1].length > 2 && parseInt(m[3]) <= 23) {
+            home = m[1].trim();
+            away = m[2].trim();
+            hour = parseInt(m[3]);
+            minute = parseInt(m[4]);
+          } else if (parseInt(m[1]) <= 23) {
+            hour = parseInt(m[1]);
+            minute = parseInt(m[2]);
+            home = m[3].trim();
+            away = m[4].trim();
           }
-          if (h > 23 || min > 59 || home.length < 3) continue;
-          home = home.replace(/\s+(will|be|at|live).*$/i, '').trim();
-          away = away.replace(/\s+(will|be|at|live).*$/i, '').trim();
-          if (!matches.some(x => x.homeTeam === home && x.awayTeam === away)) {
-            matches.push({ homeTeam: home, awayTeam: away, league: 'Europeo', time: `${h.toString().padStart(2,'0')}:${min.toString().padStart(2,'0')}`, hour: h, minute: min });
+          
+          if (hour > 23 || minute > 59 || !home || !away) continue;
+          if (home.length < 3 || away.length < 3) continue;
+          
+          // Pulisci nomi
+          home = home.replace(/\s+(will|be|at|live|vs|match|game|fc|afc).*$/i, '').trim();
+          away = away.replace(/\s+(will|be|at|live|vs|match|game|fc|afc).*$/i, '').trim();
+          
+          const exists = matches.some(x => teamsMatch(x.homeTeam, home) && teamsMatch(x.awayTeam, away));
+          if (!exists) {
+            matches.push({
+              homeTeam: home,
+              awayTeam: away,
+              league: detectLeague(text),
+              time: `${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`,
+              hour,
+              minute
+            });
           }
         }
       }
     }
+    
     return matches;
-  } catch { return []; }
+  } catch (e) {
+    console.error('[WebSearch Error]', e);
+    return [];
+  }
 }
 
-function predict(m: any): string {
-  const strong = ['napoli', 'inter', 'juventus', 'milan', 'atalanta', 'arsenal', 'liverpool', 'real madrid', 'barcelona', 'bayern', 'psg'];
-  const h = m.homeTeam.toLowerCase(), a = m.awayTeam.toLowerCase();
-  if (strong.some(t => h.includes(t)) && !strong.some(t => a.includes(t))) return '1';
-  if (strong.some(t => a.includes(t)) && !strong.some(t => h.includes(t))) return 'X2';
-  if (strong.some(t => h.includes(t)) && strong.some(t => a.includes(t))) return 'GG';
-  return '1X';
+// Rileva il campionato dal testo
+function detectLeague(text: string): string {
+  const t = text.toLowerCase();
+  if (t.includes('serie a') || t.includes('italian')) return 'Serie A';
+  if (t.includes('premier league') || t.includes('english')) return 'Premier League';
+  if (t.includes('la liga') || t.includes('spanish')) return 'La Liga';
+  if (t.includes('bundesliga') || t.includes('german')) return 'Bundesliga';
+  if (t.includes('ligue 1') || t.includes('french')) return 'Ligue 1';
+  if (t.includes('champions league')) return 'Champions League';
+  if (t.includes('europa league')) return 'Europa League';
+  if (t.includes('conference league')) return 'Conference League';
+  return 'Europeo';
 }
 
-async function analyzeExpert(m: any): Promise<any | null> {
+// AI analizza la partita come esperto
+async function analyzeMatchWithAI(match: any): Promise<any | null> {
   const KEY = process.env.GROQ_API_KEY;
-  if (!KEY) return null;
+  if (!KEY) {
+    console.log('[AI] GROQ_API_KEY non configurata');
+    return getBasicAnalysis(match);
+  }
   
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      headers: { 
+        'Authorization': `Bearer ${KEY}`, 
+        'Content-Type': 'application/json' 
+      },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: 'Sei un esperto di calcio con 30 anni di esperienza come analista sportivo professionista. Fai analisi TECNICHE e ONESTE. Il tuo obiettivo è AZZECCARE il risultato. Rispondi SOLO con JSON valido.' },
-          { role: 'user', content: `Analizza questa partita: ${m.homeTeam} vs ${m.awayTeam} (${m.league})
+          { 
+            role: 'system', 
+            content: `Sei un TOP ANALISTA SPORTIVO con 25 anni di esperienza in scommesse calcistiche. Il tuo lavoro è trovare le scommesse con ALTA PROBABILITÀ DI VINCITA.
 
-Valuta:
-1. Forza delle rose e qualità dei giocatori chiave
-2. Forma recente (ultimi 5 risultati)
-3. Motivazioni (titolo, salvezza, competizioni europee)
-4. Fattore casa
-5. Storico scontri diretti
+REGOLE FONDAMENTALI:
+1. Analizza OGNI partita oggettivamente - non fare il tifo
+2. Considera: forma recente, classifica, infortuni, fattore casa, motivazioni
+3. Assegna confidence REALISTICA (60-95%)
+4. Se una partita è INCERTA, dillo (confidence 60-65%)
+5. Se una partita è MOLTO PREVEDIBILE, assegna confidence alta (80-90%)
 
-Dai il risultato PIÙ PROBABILE, anche se ovvio.
-JSON: {"prediction":"1","odds":1.50,"confidence":80,"reasoning":"Analisi tecnica dettagliata in italiano"}` }
+Rispondi SOLO con JSON valido, nient'altro.`
+          },
+          { 
+            role: 'user', 
+            content: `Analizza questa partita di ${match.league}:
+
+ ${match.homeTeam} vs ${match.awayTeam}
+Orario: ${match.time}
+
+Fornisci:
+1. Pronostico più probabile (1, X, 2, 1X, X2, GG, NG, Over2.5, Under2.5)
+2. Quota indicativa realistica (1.10 - 5.00)
+3. Confidence (60-95%) - QUANTO SEI SICURO CHE VINCI
+4. Ragionamento tecnico breve
+
+JSON: {"prediction":"1","odds":1.50,"confidence":80,"reasoning":"Analisi tecnica in italiano"}`
+          }
         ],
-        temperature: 0.2,
-        max_tokens: 400
+        temperature: 0.3,
+        max_tokens: 300
       })
     });
     
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log('[AI] Errore API Groq');
+      return getBasicAnalysis(match);
+    }
     
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content || '';
-    const jsonMatch = content.match(/\{[\s\S]*?\}/);
-    if (!jsonMatch) return null;
     
-    const p = JSON.parse(jsonMatch[0]);
+    // Estrai JSON
+    const jsonMatch = content.match(/\{[\s\S]*?\}/);
+    if (!jsonMatch) {
+      console.log('[AI] JSON non trovato nella risposta');
+      return getBasicAnalysis(match);
+    }
+    
+    const parsed = JSON.parse(jsonMatch[0]);
     
     return {
-      event: `${m.homeTeam} vs ${m.awayTeam}`,
-      league: m.league,
-      prediction: p.prediction || '1X',
-      odds: Math.round((p.odds || 1.70) * 100) / 100,
-      confidence: Math.min(95, Math.max(60, p.confidence || 70)),
-      reasoning: p.reasoning || 'Analisi tecnica disponibile.',
+      event: `${match.homeTeam} vs ${match.awayTeam}`,
+      league: match.league,
+      prediction: parsed.prediction || '1X',
+      odds: Math.round((parsed.odds || 1.70) * 100) / 100,
+      confidence: Math.min(95, Math.max(60, parsed.confidence || 70)),
+      reasoning: parsed.reasoning || 'Analisi AI completata.',
       sport: 'football',
-      eventDate: new Date().toLocaleDateString('it-IT'),
-      matchTime: m.time
+      eventDate: new Date().toLocaleDateString('it-IT')
     };
-  } catch { return null; }
+    
+  } catch (e) {
+    console.error('[AI Error]', e);
+    return getBasicAnalysis(match);
+  }
+}
+
+// Analisi di base se AI non disponibile
+function getBasicAnalysis(match: any): any {
+  const strongTeams = [
+    'napoli', 'inter', 'juventus', 'milan', 'atalanta', 'lazio', 'roma',
+    'manchester city', 'arsenal', 'liverpool', 'chelsea', 'tottenham', 'manchester united',
+    'real madrid', 'barcelona', 'atletico madrid', 'real sociedad',
+    'bayern munich', 'borussia dortmund', 'rb leipzig',
+    'psg', 'monaco', 'marseille'
+  ];
+  
+  const homeStrong = strongTeams.some(t => match.homeTeam.toLowerCase().includes(t));
+  const awayStrong = strongTeams.some(t => match.awayTeam.toLowerCase().includes(t));
+  
+  let prediction = '1X';
+  let odds = 1.80;
+  let confidence = 65;
+  
+  if (homeStrong && !awayStrong) {
+    prediction = '1';
+    odds = 1.50;
+    confidence = 75;
+  } else if (awayStrong && !homeStrong) {
+    prediction = 'X2';
+    odds = 1.60;
+    confidence = 70;
+  } else if (homeStrong && awayStrong) {
+    prediction = 'GG';
+    odds = 1.70;
+    confidence = 68;
+  }
+  
+  return {
+    event: `${match.homeTeam} vs ${match.awayTeam}`,
+    league: match.league,
+    prediction,
+    odds,
+    confidence,
+    reasoning: `${match.homeTeam} affronta ${match.awayTeam} in ${match.league}. Analisi basata su forza storica delle squadre.`,
+    sport: 'football',
+    eventDate: new Date().toLocaleDateString('it-IT')
+  };
 }
