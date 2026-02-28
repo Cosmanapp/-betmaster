@@ -3,10 +3,13 @@ import ZAI from 'z-ai-web-dev-sdk';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { count = 5, riskLevel = 'medium' } = body;
+    const { count = 5, riskLevel = 'medium' } = await request.json();
+    
+    // ORARIO ITALIA (UTC+1)
     const now = new Date();
-    const todayStr = now.toLocaleDateString('it-IT');
+    const italyHours = now.getUTCHours() + 1;
+    const italyMinutes = now.getUTCMinutes();
+    const todayStr = now.toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' });
     const todayISO = now.toISOString().split('T')[0];
     
     let matches: any[] = [];
@@ -16,28 +19,32 @@ export async function POST(request: NextRequest) {
     matches = await searchWeb(now);
     if (matches.length > 0) source = 'web-search';
     
-    // 2. TheSportsDB API (gratuita!)
+    // 2. TheSportsDB
     if (matches.length === 0) {
       matches = await searchAPI(todayISO);
       if (matches.length > 0) source = 'thesportsdb';
     }
     
-    // 3. Fallback emergenza
+    // 3. Fallback
     if (matches.length === 0) {
       matches = getFallback(now);
       if (matches.length > 0) source = 'fallback';
     }
     
     if (matches.length === 0) {
-      return NextResponse.json({ success: true, suggestions: [{ event: '📅 Nessuna partita', league: 'Riprova', prediction: '--', odds: 0, confidence: 0, reasoning: 'Nessuna partita oggi.', sport: 'football', eventDate: todayStr }], totalFound: 0, source: 'none' });
+      return NextResponse.json({ success: true, suggestions: [{ event: '📅 Nessuna partita', league: 'Riprova', prediction: '--', odds: 0, confidence: 0, reasoning: 'Nessuna partita.', sport: 'football', eventDate: todayStr }], totalFound: 0, source: 'none' });
     }
     
-    const upcoming = filterUpcoming(matches, now);
+    // FILTRO CON ORARIO ITALIA
+    const currentItalyMinutes = (italyHours % 24) * 60 + italyMinutes;
+    const upcoming = matches.filter(m => (m.hour * 60 + (m.minute || 0)) > currentItalyMinutes + 5)
+      .sort((a, b) => (a.hour * 60 + a.minute) - (b.hour * 60 + b.minute));
     
     if (upcoming.length === 0) {
       return NextResponse.json({ success: true, suggestions: [{ event: '⏰ Partite già iniziate', league: 'Domani', prediction: '--', odds: 0, confidence: 0, reasoning: 'Tutte già iniziate.', sport: 'football', eventDate: todayStr }], totalFound: matches.length, source: 'started' });
     }
     
+    // Analisi AI
     const suggestions = [];
     for (const m of upcoming.slice(0, count + 2)) {
       const a = await analyzeExpert(m);
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
     
     if (suggestions.length === 0) {
-      return NextResponse.json({ success: true, suggestions: upcoming.slice(0, count).map(m => ({ event: `${m.homeTeam} vs ${m.awayTeam}`, league: m.league, prediction: predict(m), odds: 1.7, confidence: 65, reasoning: `${m.homeTeam} vs ${m.awayTeam} in ${m.league}.`, sport: 'football', eventDate: todayStr, matchTime: m.time })), totalFound: upcoming.length, source: source });
+      return NextResponse.json({ success: true, suggestions: upcoming.slice(0, count).map(m => ({ event: `${m.homeTeam} vs ${m.awayTeam}`, league: m.league, prediction: predict(m), odds: 1.7, confidence: 65, reasoning: `${m.homeTeam} vs ${m.awayTeam} alle ${m.time}.`, sport: 'football', eventDate: todayStr, matchTime: m.time })), totalFound: upcoming.length, source });
     }
     
     suggestions.sort((a, b) => b.confidence - a.confidence);
@@ -53,39 +60,34 @@ export async function POST(request: NextRequest) {
     if (riskLevel === 'low') filtered = suggestions.filter(s => s.confidence >= 80);
     else if (riskLevel === 'medium') filtered = suggestions.filter(s => s.confidence >= 65);
     
-    return NextResponse.json({ success: true, suggestions: filtered.slice(0, count), totalFound: upcoming.length, source, date: todayStr });
+    return NextResponse.json({ success: true, suggestions: filtered.slice(0, count), totalFound: upcoming.length, source: source + '-ai', date: todayStr, serverTime: `${italyHours % 24}:${italyMinutes.toString().padStart(2,'0')}` });
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e.message, suggestions: [] }, { status: 500 });
   }
 }
 
-// TheSportsDB - API pubblica gratuita
 async function searchAPI(date: string): Promise<any[]> {
   try {
     const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${date}&s=Soccer`, { next: { revalidate: 3600 } });
     if (!res.ok) return [];
     const data = await res.json();
     if (!data.events) return [];
-    
-    return data.events.filter((e: any) => e.strStatus !== 'Match Finished' && e.strStatus !== 'Cancelled').map((e: any) => {
+    return data.events.filter((e: any) => e.strStatus !== 'Match Finished' && e.strHomeTeam && e.strAwayTeam).map((e: any) => {
       let hour = 15, minute = 0;
       if (e.strTime) { const t = e.strTime.match(/(\d{1,2}):(\d{2})/); if (t) { hour = parseInt(t[1]); minute = parseInt(t[2]); } }
       let league = e.strLeague || 'Europeo';
       if (league.includes('Italian')) league = 'Serie A';
       else if (league.includes('English')) league = 'Premier League';
       else if (league.includes('Spanish')) league = 'La Liga';
-      else if (league.includes('German')) league = 'Bundesliga';
-      else if (league.includes('French')) league = 'Ligue 1';
       return { homeTeam: e.strHomeTeam, awayTeam: e.strAwayTeam, league, time: `${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`, hour, minute };
     });
   } catch { return []; }
 }
 
-// Web Search
 async function searchWeb(now: Date): Promise<any[]> {
   try {
     const zai = await ZAI.create();
-    const res = await zai.functions.invoke("web_search", { query: `Serie A Premier League matches today ${now.getDate()} ${now.toLocaleString('en-EN', {month: 'long'})} kickoff`, num: 10 });
+    const res = await zai.functions.invoke("web_search", { query: `Serie A matches today ${now.getDate()} ${now.toLocaleString('en-EN', {month: 'long'})} kickoff`, num: 10 });
     if (!res || !Array.isArray(res)) return [];
     const matches: any[] = [];
     for (const r of res) {
@@ -105,7 +107,6 @@ async function searchWeb(now: Date): Promise<any[]> {
   } catch { return []; }
 }
 
-// Fallback emergenza
 function getFallback(now: Date): any[] {
   const d = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
   const data: Record<string, any[]> = {
@@ -115,17 +116,11 @@ function getFallback(now: Date): any[] {
   return data[d] || [];
 }
 
-function filterUpcoming(m: any[], now: Date): any[] {
-  const cur = now.getHours() * 60 + now.getMinutes();
-  return m.filter(x => x.hour * 60 + x.minute > cur + 5).sort((a, b) => (a.hour * 60 + a.minute) - (b.hour * 60 + b.minute));
-}
-
 function predict(m: any): string {
   const strong = ['napoli', 'inter', 'juventus', 'milan', 'atalanta', 'arsenal', 'liverpool', 'real madrid', 'barcelona', 'bayern', 'psg'];
-  const h = m.homeTeam.toLowerCase(), a = m.awayTeam.toLowerCase();
-  if (strong.some(t => h.includes(t)) && !strong.some(t => a.includes(t))) return '1';
-  if (strong.some(t => a.includes(t)) && !strong.some(t => h.includes(t))) return 'X2';
-  if (strong.some(t => h.includes(t)) && strong.some(t => a.includes(t))) return 'GG';
+  if (strong.some(t => m.homeTeam.toLowerCase().includes(t)) && !strong.some(t => m.awayTeam.toLowerCase().includes(t))) return '1';
+  if (strong.some(t => m.awayTeam.toLowerCase().includes(t)) && !strong.some(t => m.homeTeam.toLowerCase().includes(t))) return 'X2';
+  if (strong.some(t => m.homeTeam.toLowerCase().includes(t)) && strong.some(t => m.awayTeam.toLowerCase().includes(t))) return 'GG';
   return '1X';
 }
 
@@ -134,14 +129,13 @@ async function analyzeExpert(m: any): Promise<any | null> {
   if (!KEY) return null;
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: 'Esperto calcio. JSON solo.' }, { role: 'user', content: `${m.homeTeam} vs ${m.awayTeam} (${m.league}). Valuta forza, forma, motivazioni. JSON: {"prediction":"1","odds":1.4,"confidence":80,"reasoning":"Analisi"}` }], temperature: 0.2 })
+      method: 'POST', headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: 'Esperto calcio. JSON.' }, { role: 'user', content: `${m.homeTeam} vs ${m.awayTeam} (${m.league}). JSON: {"prediction":"1","odds":1.4,"confidence":80,"reasoning":"Analisi"}` }], temperature: 0.2 })
     });
     const data = await res.json();
     const j = (data.choices?.[0]?.message?.content || '').match(/\{[\s\S]*?\}/);
     if (!j) return null;
     const p = JSON.parse(j[0]);
-    return { event: `${m.homeTeam} vs ${m.awayTeam}`, league: m.league, prediction: p.prediction || '1X', odds: Math.round((p.odds || 1.7) * 100) / 100, confidence: Math.min(95, Math.max(60, p.confidence || 70)), reasoning: p.reasoning || 'Analisi AI.', sport: 'football', eventDate: new Date().toLocaleDateString('it-IT'), matchTime: m.time };
+    return { event: `${m.homeTeam} vs ${m.awayTeam}`, league: m.league, prediction: p.prediction || '1X', odds: Math.round((p.odds || 1.7) * 100) / 100, confidence: Math.min(95, Math.max(60, p.confidence || 70)), reasoning: p.reasoning || 'Analisi.', sport: 'football', eventDate: new Date().toLocaleDateString('it-IT'), matchTime: m.time };
   } catch { return null; }
 }
