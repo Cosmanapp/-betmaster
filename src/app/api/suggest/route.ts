@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 
+// API per suggerimenti usando Groq AI + Web Search (fallback) o Football-Data.org
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -8,160 +9,226 @@ export async function POST(request: NextRequest) {
       sport = 'football', 
       league, 
       count = 5, 
-      additionalContext = '',
-      previousResult,
-      bankroll,
-      riskLevel = 'medium'
+      riskLevel = 'medium',
+      apiKey // Football-data.org key (opzionale)
     } = body;
 
-    console.log('[SUGGEST] Richiesta:', { sport, league, count, riskLevel });
-
-    const zai = await ZAI.create();
-
-    // Query di ricerca
     const today = new Date();
-    const oggi = today.toLocaleDateString('it-IT');
-    let searchQueries: string[] = [];
+    const todayStr = today.toLocaleDateString('it-IT');
+    const todayISO = today.toISOString().split('T')[0];
     
-    if (sport === 'football') {
-      searchQueries = [
-        `partite calcio oggi ${oggi} quote`,
-        `pronostici calcio ${oggi}`,
-        `Serie A Premier League oggi quote`
-      ];
-    } else if (sport === 'basketball') {
-      searchQueries = [`partite basket NBA oggi quote`, `pronostici basket`];
-    } else if (sport === 'tennis') {
-      searchQueries = [`partite tennis ATP oggi quote`, `pronostici tennis`];
-    } else {
-      searchQueries = [`quote ${sport} oggi`, `pronostici ${sport}`];
-    }
-
-    // Esegui web search
-    let searchContext = '';
-    let suggestions: any[] = [];
+    let matches: any[] = [];
     
-    try {
-      const searchPromises = searchQueries.map(q => 
-        zai.functions.invoke("web_search", { query: q, num: 5 })
-      );
-      
-      const searchResults = await Promise.all(searchPromises);
-      const allResults = searchResults.flat();
-      
-      searchContext = allResults
-        .slice(0, 10)
-        .map((r: any) => `${r.name || ''}: ${r.snippet || ''}`)
-        .join('\n\n');
-        
-      console.log('[SUGGEST] Web search OK:', searchContext.length, 'caratteri');
-    } catch (searchError) {
-      console.error('[SUGGEST] Errore web search:', searchError);
-    }
-
-    // Prova AI per generare suggerimenti
-    if (searchContext) {
+    // 1. Prova con Football-Data.org se c'è API key
+    if (apiKey && apiKey.trim() !== '') {
       try {
-        const systemPrompt = `Sei un esperto di scommesse sportive. Analizza i dati e fornisci suggerimenti in italiano.
-Rispondi SOLO con un array JSON valido, niente altro testo.
-
-Formato richiesto:
-[{"event":"Squadra A vs Squadra B","prediction":"1","odds":1.85,"confidence":70,"reasoning":"Analisi..."}]`;
-
-        const userPrompt = `Dati dal web:
-${searchContext}
-
-Fornisci ${count} suggerimenti per ${sport}. Rispondi SOLO con JSON array:`;
-
-        const completion = await zai.chat.completions.create({
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 1500
-        });
-
-        const responseText = completion.choices[0]?.message?.content || '';
-        console.log('[SUGGEST] AI risposta:', responseText.substring(0, 200));
-        
-        const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          suggestions = JSON.parse(jsonMatch[0]);
-          console.log('[SUGGEST] AI ha generato', suggestions.length, 'suggerimenti');
-        }
-      } catch (aiError) {
-        console.error('[SUGGEST] Errore AI:', aiError);
+        matches = await fetchFootballDataOrg(apiKey.trim(), todayISO);
+      } catch (e) {
+        console.error('[Football-Data] Errore:', e);
       }
     }
-
-    // Se AI non ha funzionato, estrai dai dati web
-    if (suggestions.length === 0 && searchContext) {
-      suggestions = extractFromWebData(searchContext, sport, count);
-      console.log('[SUGGEST] Estratti dai dati web:', suggestions.length);
+    
+    // 2. Fallback: Usa Web Search per trovare partite di oggi
+    if (matches.length === 0) {
+      matches = await searchTodaysMatches();
     }
-
-    // Se ancora niente, usa fallback
-    if (suggestions.length === 0) {
-      suggestions = getFallbackSuggestions(sport, count);
-      console.log('[SUGGEST] Uso fallback');
+    
+    if (matches.length === 0) {
+      return NextResponse.json({
+        success: true,
+        suggestions: [{
+          event: '📅 Nessuna partita trovata oggi',
+          league: 'Riprova più tardi',
+          prediction: '--',
+          odds: 0,
+          confidence: 0,
+          reasoning: `Oggi ${todayStr} potrebbe non esserci calcio.`,
+          sport: sport,
+          eventDate: todayStr
+        }],
+        totalFound: 0,
+        timestamp: new Date().toISOString(),
+        source: 'no_matches',
+        date: todayStr
+      });
+    }
+    
+    // 3. Per ogni partita, ottieni analisi AI
+    const suggestions = [];
+    for (const match of matches.slice(0, count + 5)) {
+      try {
+        const analysis = await analyzeMatchWithGroq(match);
+        if (analysis) suggestions.push(analysis);
+      } catch (e) {
+        console.error('Error analyzing match:', e);
+      }
+    }
+    
+    // 4. Filtra per rischio
+    let filtered = suggestions;
+    if (riskLevel === 'low') {
+      filtered = suggestions.filter(s => s.confidence >= 75);
+    } else if (riskLevel === 'medium') {
+      filtered = suggestions.filter(s => s.confidence >= 60);
     }
 
     return NextResponse.json({
       success: true,
-      suggestions,
-      timestamp: new Date().toISOString()
+      suggestions: filtered.slice(0, count),
+      totalFound: matches.length,
+      timestamp: new Date().toISOString(),
+      source: apiKey ? 'football-data-org + groq' : 'web-search + groq',
+      lastUpdate: todayStr,
+      date: todayStr
     });
 
   } catch (error: any) {
-    console.error('[SUGGEST] Errore:', error);
     return NextResponse.json({
-      success: true,
-      suggestions: getFallbackSuggestions('football', 5)
-    });
+      success: false,
+      error: error.message || 'Errore',
+      suggestions: []
+    }, { status: 500 });
   }
 }
 
-// Estrae suggerimenti dai dati web
-function extractFromWebData(context: string, sport: string, count: number): any[] {
-  const suggestions: any[] = [];
+// Cerca partite di oggi via Web Search
+async function searchTodaysMatches(): Promise<any[]> {
+  const matches: any[] = [];
   
-  // Pattern per trovare partite
-  const matchPatterns = [
-    /([A-Z][a-z]+)\s*[–\-vs]+\s*([A-Z][a-z]+)/gi,
-    /(\d{1,2}:\d{2})\s*([A-Z][a-z]+)\s*[–\-]\s*([A-Z][a-z]+)/gi
-  ];
-  
-  const matches = context.matchAll(matchPatterns[0]);
-  
-  for (const match of matches) {
-    if (suggestions.length >= count) break;
+  try {
+    const zai = await ZAI.create();
+    const today = new Date();
+    const dateStr = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
     
-    const team1 = match[1];
-    const team2 = match[2];
-    
-    suggestions.push({
-      event: `${team1} vs ${team2}`,
-      sport: sport,
-      prediction: '1X',
-      odds: 1.60 + Math.random() * 0.5,
-      confidence: 50 + Math.floor(Math.random() * 30),
-      reasoning: `Partita identificata dai dati web. Analisi basata sulle informazioni disponibili.`
+    const searchResult = await zai.functions.invoke("web_search", {
+      query: `partite calcio oggi ${dateStr} serie A premier league liga`,
+      num: 15
     });
+    
+    if (searchResult && Array.isArray(searchResult)) {
+      for (const result of searchResult) {
+        const text = result.snippet || '';
+        const title = result.name || '';
+        
+        const patterns = [
+          /([A-Za-zÀ-ÿ\s]+)\s+vs\s+([A-Za-zÀ-ÿ\s]+)/gi,
+          /([A-Za-zÀ-ÿ\s]+)\s*-\s*([A-Za-zÀ-ÿ\s]+)/gi
+        ];
+        
+        for (const pattern of patterns) {
+          const found = text.match(pattern) || title.match(pattern);
+          if (found) {
+            for (const m of found) {
+              const parts = m.split(/\s+vs\s+|\s*-\s*/i);
+              if (parts.length === 2) {
+                const home = parts[0].trim();
+                const away = parts[1].trim();
+                
+                if (home.length > 2 && away.length > 2) {
+                  let league = 'Campionato';
+                  const ctx = (text + ' ' + title).toLowerCase();
+                  if (ctx.includes('serie a')) league = 'Serie A';
+                  else if (ctx.includes('premier')) league = 'Premier League';
+                  else if (ctx.includes('liga')) league = 'La Liga';
+                  else if (ctx.includes('bundesliga')) league = 'Bundesliga';
+                  else if (ctx.includes('champions')) league = 'Champions League';
+                  
+                  matches.push({
+                    homeTeam: home,
+                    awayTeam: away,
+                    league,
+                    date: new Date().toISOString(),
+                    status: 'SCHEDULED'
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Rimuovi duplicati
+    return matches.filter((m, i, arr) =>
+      i === arr.findIndex(x => 
+        x.homeTeam.toLowerCase() === m.homeTeam.toLowerCase() &&
+        x.awayTeam.toLowerCase() === m.awayTeam.toLowerCase()
+      )
+    ).slice(0, 15);
+    
+  } catch (e) {
+    console.error('Web search error:', e);
+    return matches;
   }
-  
-  return suggestions;
 }
 
-// Suggerimenti fallback
-function getFallbackSuggestions(sport: string, count: number): any[] {
-  const tips = [
-    { event: "Parma vs Cagliari", sport: "football", prediction: "1X", odds: 1.55, confidence: 62, reasoning: "Il Parma gioca in casa e ha un buon momento di forma. Il Cagliari in trasferta fatica contro squadre organizzate." },
-    { event: "Wolves vs Aston Villa", sport: "football", prediction: "Over 2.5", odds: 1.75, confidence: 58, reasoning: "Derby della Midlands con squadre offensive. Entrambe tendono a segnare e subire gol." },
-    { event: "Strasburgo vs Lens", sport: "football", prediction: "X2", odds: 1.70, confidence: 55, reasoning: "Il Lens è in buona forma in Ligue 1. Lo Strasburgo ha difficoltà contro le squadre di alta classifica." },
-    { event: "Porto vs Sporting", sport: "football", prediction: "Gol", odds: 1.50, confidence: 65, reasoning: "Classico portoghese sempre aperto. Entrambe le squadre segnano con regolarità." },
-    { event: "Real Sociedad vs Villarreal", sport: "football", prediction: "Under 3.5", odds: 1.45, confidence: 60, reasoning: "Partita tattica tra due squadre che giocano con intelligenza. Pochi gol previsti." }
-  ];
+// Scarica partite da football-data.org
+async function fetchFootballDataOrg(apiKey: string, date: string): Promise<any[]> {
+  const response = await fetch(
+    `https://api.football-data.org/v4/matches?date=${date}`,
+    { headers: { 'X-Auth-Token': apiKey }, cache: 'no-store' }
+  );
   
-  return tips.slice(0, count);
+  if (!response.ok) return [];
+  
+  const data = await response.json();
+  const matches: any[] = [];
+  
+  if (data.matches) {
+    for (const m of data.matches) {
+      if (m.status !== 'FINISHED' && m.status !== 'POSTPONED') {
+        matches.push({
+          homeTeam: m.homeTeam?.name,
+          awayTeam: m.awayTeam?.name,
+          league: m.competition?.name,
+          area: m.competition?.area?.name,
+          date: m.utcDate,
+          status: m.status
+        });
+      }
+    }
+  }
+  return matches;
+}
+
+// Analisi AI con Groq
+async function analyzeMatchWithGroq(match: any): Promise<any | null> {
+  const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+  const home = match.homeTeam || 'Casa';
+  const away = match.awayTeam || 'Trasferta';
+  const league = match.league || 'Campionato';
+  
+  const prompt = `Sei un bookmaker professionista. Analizza: ${home} vs ${away} (${league})
+Rispondi in JSON: {"prediction":"1/X/2/1X/X2/Over 2.5/Under 2.5/GG","odds":1.5,"confidence":75,"reasoning":"Analisi dettagliata"}`;
+  
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3
+      })
+    });
+    
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const json = content.match(/\{[\s\S]*\}/);
+    if (!json) return null;
+    
+    const a = JSON.parse(json[0]);
+    return {
+      event: `${home} vs ${away}`,
+      league,
+      prediction: a.prediction || '1X',
+      odds: Math.round((a.odds || 1.5) * 100) / 100,
+      confidence: Math.min(95, Math.max(60, a.confidence || 70)),
+      reasoning: a.reasoning || 'Analisi AI',
+      sport: 'football',
+      eventDate: new Date().toLocaleDateString('it-IT')
+    };
+  } catch (e) {
+    return null;
+  }
 }
