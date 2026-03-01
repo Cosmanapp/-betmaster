@@ -112,8 +112,8 @@ export default function BetMasterApp() {
 
   useEffect(() => {
     loadAllData();
-    // Auto-check risultati ogni 3 minuti
-    const interval = setInterval(checkMatchResults, 180000);
+    // Auto-check risultati ogni 5 minuti
+    const interval = setInterval(checkMatchResults, 300000);
     return () => clearInterval(interval);
   }, []);
 
@@ -146,24 +146,34 @@ export default function BetMasterApp() {
     }
   };
 
-  // Controlla risultati partite automaticamente
+  // Controlla risultati partite via API
   const checkMatchResults = async () => {
     const pendingBets = bets.filter(b => b.status === 'pending');
     if (pendingBets.length === 0) return;
 
     setIsUpdating(true);
     try {
-      for (const bet of pendingBets) {
-        const result = await checkSingleMatchResult(bet);
-        if (result) {
-          if (result.won !== undefined && result.won) {
-            const profit = (bet.stake * bet.odds) - bet.stake;
-            await updateBet(bet.id, { status: 'won', profitLoss: profit });
-            await updateSettings({ bankroll: settings.bankroll + bet.stake + profit });
-            toast.success(`🎉 ${bet.event} VINTA! +€${profit.toFixed(2)}`);
-          } else if (result.lost !== undefined && result.lost) {
-            await updateBet(bet.id, { status: 'lost', profitLoss: -bet.stake });
-            toast.error(`❌ ${bet.event} persa`);
+      const response = await fetch('/api/check-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bets: pendingBets })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.results) {
+        for (const result of data.results) {
+          const bet = pendingBets.find(b => b.id === result.betId);
+          if (bet) {
+            if (result.won) {
+              const profit = (bet.stake * bet.odds) - bet.stake;
+              await updateBet(bet.id, { status: 'won', profitLoss: profit });
+              await updateSettings({ bankroll: settings.bankroll + bet.stake + profit });
+              toast.success(`🎉 ${bet.event} VINTA! +€${profit.toFixed(2)}`);
+            } else if (result.lost) {
+              await updateBet(bet.id, { status: 'lost', profitLoss: -bet.stake });
+              toast.error(`❌ ${bet.event} persa`);
+            }
           }
         }
       }
@@ -171,103 +181,6 @@ export default function BetMasterApp() {
       console.error('Auto-update error:', e);
     }
     setIsUpdating(false);
-  };
-
-  // Controlla risultato singola partita
-  const checkSingleMatchResult = async (bet: Bet): Promise<{ won?: boolean, lost?: boolean } | null> => {
-    try {
-      const zai = await (await import('z-ai-web-dev-sdk')).default.create();
-      
-      // Cerca risultato partita
-      const searchRes = await zai.functions.invoke("web_search", {
-        query: `${bet.event} final score result today 2026`,
-        num: 5
-      });
-
-      if (searchRes && Array.isArray(searchRes)) {
-        for (const r of searchRes) {
-          const text = (r.snippet || '').toLowerCase();
-          const eventName = bet.event.toLowerCase();
-          
-          // Verifica che il risultato sia per la partita giusta
-          const teamNames = bet.event.split(' vs ').map(t => t.trim().toLowerCase());
-          const hasTeam = teamNames.some(t => text.includes(t.split(' ')[0].toLowerCase()));
-          
-          if (!hasTeam) continue;
-          
-          // Cerca punteggio finale (es. "2-1", "1 - 0", "3–2")
-          const scoreMatch = text.match(/(\d+)\s*[-–]\s*(\d+)/);
-          if (scoreMatch) {
-            const homeScore = parseInt(scoreMatch[1]);
-            const awayScore = parseInt(scoreMatch[2]);
-            
-            // Se trova "finished", "full time", "final" è più affidabile
-            const isFinished = text.includes('finish') || text.includes('final') || text.includes('full time') || text.includes('ended');
-            
-            const pred = bet.prediction.toLowerCase().trim();
-            
-            // Vittoria casa (1)
-            if (pred === '1' || pred === '1x2 1') {
-              if (homeScore > awayScore) return { won: true };
-              if (homeScore < awayScore) return { lost: true };
-              if (homeScore === awayScore && isFinished) return { lost: true };
-            }
-            
-            // Vittoria fuori (2)
-            if (pred === '2' || pred === '1x2 2') {
-              if (awayScore > homeScore) return { won: true };
-              if (awayScore < homeScore) return { lost: true };
-              if (homeScore === awayScore && isFinished) return { lost: true };
-            }
-            
-            // Pareggio (X)
-            if (pred === 'x' || pred === 'draw') {
-              if (homeScore === awayScore && isFinished) return { won: true };
-              if (homeScore !== awayScore && isFinished) return { lost: true };
-            }
-            
-            // Goal (GG / BTTS)
-            if (pred === 'gg' || pred === 'btts' || pred === 'goal') {
-              if (homeScore > 0 && awayScore > 0 && isFinished) return { won: true };
-              if ((homeScore === 0 || awayScore === 0) && isFinished) return { lost: true };
-            }
-            
-            // No Goal (NG)
-            if (pred === 'ng' || pred === 'no goal') {
-              if ((homeScore === 0 || awayScore === 0) && isFinished) return { won: true };
-              if (homeScore > 0 && awayScore > 0 && isFinished) return { lost: true };
-            }
-            
-            // 1X
-            if (pred === '1x') {
-              if (homeScore >= awayScore && isFinished) return { won: true };
-              if (homeScore < awayScore && isFinished) return { lost: true };
-            }
-            
-            // X2
-            if (pred === 'x2') {
-              if (awayScore >= homeScore && isFinished) return { won: true };
-              if (homeScore > awayScore && isFinished) return { lost: true };
-            }
-            
-            // Over 2.5
-            if (pred === 'over 2.5' || pred === 'o2.5') {
-              if (homeScore + awayScore > 2.5 && isFinished) return { won: true };
-              if (homeScore + awayScore <= 2.5 && isFinished) return { lost: true };
-            }
-            
-            // Under 2.5
-            if (pred === 'under 2.5' || pred === 'u2.5') {
-              if (homeScore + awayScore < 2.5 && isFinished) return { won: true };
-              if (homeScore + awayScore >= 2.5 && isFinished) return { lost: true };
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Check result error:', e);
-    }
-    return null;
   };
 
   const stats = useCallback(() => {
@@ -283,7 +196,6 @@ export default function BetMasterApp() {
     const roi = totalStake > 0 ? (profitLoss / totalStake) * 100 : 0;
     const winRate = total > 0 ? (wins / total) * 100 : 0;
     
-    // Calcoli aggiuntivi
     const avgOdds = completed.length > 0 ? completed.reduce((sum, b) => sum + b.odds, 0) / completed.length : 0;
     const pendingCount = bets.filter(b => b.status === 'pending').length;
     const pendingStake = bets.filter(b => b.status === 'pending').reduce((sum, b) => sum + b.stake, 0);
@@ -407,7 +319,6 @@ export default function BetMasterApp() {
     }
   };
 
-  // Toggle selezione tip
   const toggleTipSelection = (tipId: string) => {
     setSelectedTips(prev => {
       const newSet = new Set(prev);
@@ -422,7 +333,6 @@ export default function BetMasterApp() {
     });
   };
 
-  // Gioca le selezionate
   const playSelectedBets = async () => {
     const selectedArray = Array.from(selectedTips);
     let totalStake = 0;
@@ -458,7 +368,6 @@ export default function BetMasterApp() {
     toast.success(`${selectedArray.length} giocate aggiunte! Totale: €${totalStake.toFixed(2)}`);
   };
 
-  // Aggiungi scommessa manuale
   const addManualBet = async () => {
     if (!manualBet.event || !manualBet.prediction || !manualBet.odds || !manualBet.stake) {
       toast.error('Compila tutti i campi');
@@ -1261,7 +1170,7 @@ export default function BetMasterApp() {
                     <CardTitle className="text-white">ℹ️ Info</CardTitle>
                   </CardHeader>
                   <CardContent className="text-gray-300 text-sm space-y-2">
-                    <p>• I risultati vengono aggiornati automaticamente ogni 3 minuti</p>
+                    <p>• I risultati vengono aggiornati automaticamente ogni 5 minuti</p>
                     <p>• Puoi aggiungere scommesse manuali dalla sezione Storico</p>
                     <p>• Il controllo automatico funziona per i principali tipi di scommessa (1, X, 2, GG, NG, 1X, X2, Over/Under)</p>
                     <p>• I suggerimenti AI vengono generati cercando dati in tempo reale</p>
