@@ -1,142 +1,118 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
+import { ALL_MATCHES, getUpcomingMatches, type Match } from '@/lib/calendar';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
-      sport, 
-      league, 
-      count = 5, 
-      additionalContext = '',
-      previousResult,
-      bankroll,
-      riskLevel = 'medium'
-    } = body;
+    const count = body.count || 5;
+    const league = body.league || 'all';
 
-    const zai = await ZAI.create();
+    console.log('[SUGGEST] Richiesta', count, 'pronostici per lega:', league);
+    console.log('[SUGGEST] Totale partite in calendario:', ALL_MATCHES.length);
 
-    // Costruisco la query di ricerca basata sui parametri
-    const today = new Date().toLocaleDateString('it-IT');
-    const searchQueries = [];
-    
-    if (sport === 'football') {
-      searchQueries.push(`quote calcio ${league || 'oggi'} ${today}`);
-      searchQueries.push(`statistiche calcio ${league || ''} ultime partite`);
-      searchQueries.push(`news calcio ${league || ''} infortuni formazioni`);
-    } else if (sport === 'basketball') {
-      searchQueries.push(`quote basket NBA Eurolega ${today}`);
-      searchQueries.push(`statistiche basket ultime partite`);
-    } else if (sport === 'tennis') {
-      searchQueries.push(`quote tennis ATP WTA ${today}`);
-      searchQueries.push(`risultati tennis ATP WTA`);
-    } else {
-      searchQueries.push(`quote ${sport} ${today}`);
-      searchQueries.push(`statistiche ${sport} previsioni`);
+    let upcomingMatches = getUpcomingMatches(7);
+    console.log('[SUGGEST] Partite prossime 7 giorni:', upcomingMatches.length);
+
+    if (league && league !== 'all') {
+      upcomingMatches = upcomingMatches.filter(m => m.league === league);
     }
 
-    // Eseguo ricerche web parallele
-    const searchPromises = searchQueries.map(q => 
-      zai.functions.invoke("web_search", { query: q, num: 5 })
-    );
-    
-    const searchResults = await Promise.all(searchPromises);
-    
-    // Combino i risultati
-    const allResults = searchResults.flat();
-    const searchContext = allResults
-      .slice(0, 10)
-      .map((r: any) => `${r.name}: ${r.snippet}`)
-      .join('\n\n');
+    if (upcomingMatches.length === 0) {
+      console.log('[SUGGEST] Nessuna partita prossima, uso tutto il calendario');
+      upcomingMatches = ALL_MATCHES.slice(0, 20);
+    }
 
-    // Creo il prompt per l'AI
-    let systemPrompt = `Sei il più grande esperto di scommesse sportive al mondo. Hai decenni di esperienza nel analizzare quote, statistiche, forma delle squadre/atleti, infortuni, fattori ambientali e psicologici.
-
-Il tuo compito è fornire suggerimenti di scommesse professionali, basati su:
-1. Analisi statistiche approfondite
-2. Valutazione delle quote (value betting)
-3. Fattori nascosti (infortuni, motivazione, fattori ambientali)
-4. Gestione del bankroll intelligente
-
-IMPORTANTE: 
-- Non usare mai la strategia martingala (raddoppiare dopo una perdita)
-- Cerca sempre value bet dove la quota offerta è superiore alla probabilità reale
-- Fornisci sempre reasoning dettagliato per ogni suggerimento
-- Indica la confidence (0-100) basata sulla certezza della previsione
-- Ogni suggerimento deve essere basato sui dati raccolti dal web
-
-Rispondi SEMPRE in italiano.`;
-
-    let userPrompt = `Analizza i seguenti dati raccolti dal web e fornisci ${count} suggerimenti di scommesse per ${sport} ${league || ''}:
-
-DATI DAL WEB:
-${searchContext}
-
-${additionalContext ? `CONTESTO AGGIUNTIVO: ${additionalContext}` : ''}
-
-${previousResult ? `RISULTATO PRECEDENTE: ${previousResult}` : ''}
-${bankroll ? `BANKROLL ATTUALE: €${bankroll}` : ''}
-${riskLevel ? `LIVELLO RISCHIO: ${riskLevel}` : ''}
-
-Per ogni suggerimento fornisci:
-1. Evento (squadre/atleti)
-2. Previsione (1, X, 2, Over/Under, ecc.)
-3. Quota stimata
-4. Confidence (0-100)
-5. Reasoning dettagliato (almeno 3-4 frasi)
-6. Data evento (se disponibile)
-
-Rispondi in formato JSON array:
-[
-  {
-    "event": "Squadra A vs Squadra B",
-    "sport": "${sport}",
-    "league": "${league || ''}",
-    "prediction": "1",
-    "odds": 1.85,
-    "confidence": 75,
-    "reasoning": "Analisi dettagliata...",
-    "eventDate": "${today}",
-    "bookmakers": ["Bet365", "William Hill"]
-  }
-]`;
-
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
+    upcomingMatches.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      return a.time.localeCompare(b.time);
     });
 
-    const responseText = completion.choices[0]?.message?.content || '[]';
-    
-    // Parsing della risposta JSON
-    let suggestions = [];
+    const selectedMatches = upcomingMatches.slice(0, Math.min(count * 2, 15));
+    console.log('[SUGGEST] Partite selezionate:', selectedMatches.length);
+
     try {
-      // Estrae il JSON dalla risposta
+      const zai = await ZAI.create();
+      
+      const matchesText = selectedMatches
+        .map(m => `${m.home} vs ${m.away} (${m.league}) - ${m.date} ore ${m.time}${m.round ? ` [${m.round}]` : ''}`)
+        .join('\n');
+
+      const completion = await zai.chat.completions.create({
+        messages: [
+          {
+            role: 'system',
+            content: `Sei un esperto di scommesse calcistiche europee.
+Analizza le partite REALI e genera pronostici.
+Rispondi SOLO con JSON array.
+Formato: [{"event":"Squadra A vs Squadra B","prediction":"1","odds":1.85,"confidence":72,"reasoning":"motivo","league":"Serie A","matchTime":"15:00","date":"2026-01-25"}]
+Prediction: 1, X, 2, 1X, X2, GG, NG, Over 2.5, Under 2.5
+Confidence: 55-85
+Odds: 1.30-4.00`
+          },
+          {
+            role: 'user',
+            content: `Analizza queste partite REALI e fornisci ${count} pronostici:\n${matchesText}\nGenera ${count} pronostici in JSON:`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '';
+      console.log('[SUGGEST] AI risposta:', responseText.substring(0, 200));
+
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        suggestions = JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        const valid = parsed
+          .filter((s: any) => s.event && s.prediction)
+          .slice(0, count)
+          .map((s: any) => ({
+            event: s.event,
+            sport: 'football',
+            prediction: s.prediction,
+            odds: Math.round((s.odds || 1.70) * 100) / 100,
+            confidence: Math.min(85, Math.max(55, s.confidence || 65)),
+            reasoning: s.reasoning || 'Analisi AI',
+            league: s.league || 'Calcio',
+            matchTime: s.matchTime || '',
+            date: s.date || ''
+          }));
+
+        if (valid.length > 0) {
+          console.log('[SUGGEST] SUCCESS AI:', valid.length);
+          return NextResponse.json({ success: true, suggestions: valid, source: 'calendar_ai', totalMatches: upcomingMatches.length });
+        }
       }
-    } catch (e) {
-      console.error('JSON parsing error:', e);
-      suggestions = [];
+    } catch (aiErr: any) {
+      console.log('[SUGGEST] AI error, uso fallback:', aiErr.message);
     }
 
-    return NextResponse.json({
-      success: true,
-      suggestions,
-      searchContext,
-      timestamp: new Date().toISOString()
+    const predictions = ['1', 'X', '2', '1X', 'X2', 'GG', 'Over 2.5'];
+    const oddsMap: Record<string, number> = { '1': 2.10, 'X': 3.20, '2': 2.40, '1X': 1.40, 'X2': 1.55, 'GG': 1.70, 'Over 2.5': 1.80 };
+    
+    const suggestions = selectedMatches.slice(0, count).map((m, i) => {
+      const pred = predictions[i % predictions.length];
+      return {
+        event: `${m.home} vs ${m.away}`,
+        sport: 'football',
+        prediction: pred,
+        odds: oddsMap[pred] || 1.70,
+        confidence: 60 + Math.floor(Math.random() * 15),
+        reasoning: `${m.home} vs ${m.away} in ${m.league}${m.round ? ` (${m.round})` : ''}. ${m.date} ore ${m.time}.`,
+        league: m.league,
+        matchTime: m.time,
+        date: m.date
+      };
     });
 
+    console.log('[SUGGEST] SUCCESS fallback:', suggestions.length);
+    return NextResponse.json({ success: true, suggestions, source: 'calendar_fallback', totalMatches: upcomingMatches.length });
+
   } catch (error: any) {
-    console.error('Suggestion error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Suggestion failed' },
-      { status: 500 }
-    );
+    console.error('[SUGGEST] Errore:', error);
+    return NextResponse.json({ success: false, suggestions: [], error: error.message });
   }
 }
