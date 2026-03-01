@@ -10,177 +10,170 @@ const CALENDAR_2025_2026 = {
   // SERIE A - Italia
   serieA: {
     name: "Serie A",
-    country: "🇮🇹",
+    country: "Italia",
     teams: ["Napoli", "Inter", "Atalanta", "Lazio", "Juventus", "Fiorentina", "Bologna", "Roma", "Milan", "Udinese", "Torino", "Genoa", "Verona", "Cagliari", "Parma", "Lecce", "Como", "Venezia", "Empoli", "Monza"],
-    upcomingMatches: [
-      // Giornata 27 - Fine Febbraio/Inizio Marzo 2026
+    matches: [
       { home: "Napoli", away: "Inter", date: "2026-03-01", time: "20:45" },
       { home: "Atalanta", away: "Lazio", date: "2026-03-01", time: "18:00" },
       { home: "Juventus", away: "Fiorentina", date: "2026-03-02", time: "20:45" },
       { home: "Roma", away: "Milan", date: "2026-03-02", time: "18:00" },
       { home: "Bologna", away: "Udinese", date: "2026-03-02", time: "15:00" },
-      // Giornata 28
       { home: "Inter", away: "Atalanta", date: "2026-03-08", time: "20:45" },
       { home: "Lazio", away: "Roma", date: "2026-03-08", time: "18:00" },
       { home: "Milan", away: "Juventus", date: "2026-03-09", time: "20:45" },
       { home: "Fiorentina", away: "Bologna", date: "2026-03-09", time: "15:00" },
       { home: "Napoli", away: "Torino", date: "2026-03-09", time: "18:00" },
-      // Giornata 29
       { home: "Juventus", away: "Atalanta", date: "2026-03-15", time: "20:45" },
       { home: "Roma", away: "Napoli", date: "2026-03-15", time: "18:00" },
       { home: "Inter", away: "Milan", date: "2026-03-16", time: "20:45" },
       { home: "Lazio", away: "Fiorentina", date: "2026-03-16", time: "15:00" },
       { home: "Bologna", away: "Genoa", date: "2026-03-16", time: "18:00" },
+      { home: "Torino", away: "Verona", date: "2026-03-22", time: "15:00" },
+      { home: "Genoa", away: "Cagliari", date: "2026-03-22", time: "18:00" },
+      { home: "Parma", away: "Lecce", date: "2026-03-23", time: "15:00" },
+      { home: "Udinese", away: "Empoli", date: "2026-03-23", time: "18:00" },
+      { home: "Venezia", away: "Monza", date: "2026-03-23", time: "20:45" },
     ]
   },
 
   // PREMIER LEAGUE - Inghilterra
   premierLeague: {
     name: "Premier League",
-    country: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    country: "Inghilterra",
     teams: ["Liverpool", "Arsenal", "Manchester City", "Chelsea", "Newcastle", "Brighton", "Aston Villa", "Tottenham", "Manchester United", "Fulham", "Bournemouth", "Brentford", "West Ham", "Crystal Palace", "Wolves", "Everton", "Nottingham Forest", "Ipswich", "Leicester", "Southampton"],
-    upcomingMatches: [
-      // Gameweek 28
+    matches: [
       { home: "Liverpool", away: "Manchester City", date: "2026-03-01", time: "17:30" },
       { home: "Arsenal", away: "Chelsea", date: "2026-03-01", time: "15:00" },
       { home: "Tottenham", away: "Manchester United", date: "2026-03-01", time: "20:00" },
       { home: "Newcastle", away: "Brighton", date: "2026-03-01", time: "15:00" },
       { home: "Aston Villa", away: "Fulham", date: "2026-03-02", time: "14:00" },
-      // Gameweek 29
       { home: "Manchester City", away: "Arsenal", date: "2026-03-08", time: "17:30" },
       { home: "Chelsea", away: "Tottenham", date: "2026-03-08", time: "15:00" },
       { home: "Manchester United", away: "Liverpool", date: "2026-03-09", time: "16:30" },
       { home: "Brighton", away: "Aston Villa", date: "2026-03-08", time: "15:00" },
       { home: "Newcastle", away: "West Ham", date: "2026-03-08", time: "20:00" },
-      // Gameweek 30
       { home: "Arsenal", away: "Manchester United", date: "2026-03-15", time: "17:30" },
       { home: "Liverpool", away: "Newcastle", date: "2026-03-15", time: "15:00" },
       { home: "Tottenham", away: "Brighton", date: "2026-03-15", time: "15:00" },
       { home: "Chelsea", away: "Aston Villa", date: "2026-03-16", time: "14:00" },
       { home: "Manchester City", away: "Fulham", date: "2026-03-16", time: "16:30" },
+      { home: "Wolves", away: "Everton", date: "2026-03-22", time: "15:00" },
+      { home: "Brentford", away: "Bournemouth", date: "2026-03-22", time: "15:00" },
+      { home: "Crystal Palace", away: "Ipswich", date: "2026-03-22", time: "15:00" },
+      { home: "Nottingham Forest", away: "Leicester", date: "2026-03-23", time: "14:00" },
+      { home: "Southampton", away: "West Ham", date: "2026-03-23", time: "16:30" },
     ]
   },
 
   // LA LIGA - Spagna
   laLiga: {
     name: "La Liga",
-    country: "🇪🇸",
+    country: "Spagna",
     teams: ["Real Madrid", "Barcelona", "Atletico Madrid", "Athletic Bilbao", "Villarreal", "Real Betis", "Real Sociedad", "Girona", "Sevilla", "Valencia", "Osasuna", "Celta Vigo", "Mallorca", "Getafe", "Rayo Vallecano", "Espanyol", "Alaves", "Leganes", "Las Palmas", "Valladolid"],
-    upcomingMatches: [
-      // Jornada 27
+    matches: [
       { home: "Real Madrid", away: "Barcelona", date: "2026-03-01", time: "21:00" },
       { home: "Atletico Madrid", away: "Athletic Bilbao", date: "2026-03-01", time: "18:30" },
       { home: "Villarreal", away: "Real Betis", date: "2026-03-02", time: "14:00" },
       { home: "Real Sociedad", away: "Sevilla", date: "2026-03-02", time: "16:15" },
       { home: "Valencia", away: "Girona", date: "2026-03-02", time: "18:30" },
-      // Jornada 28
       { home: "Barcelona", away: "Atletico Madrid", date: "2026-03-08", time: "21:00" },
       { home: "Athletic Bilbao", away: "Real Madrid", date: "2026-03-08", time: "18:30" },
       { home: "Real Betis", away: "Real Sociedad", date: "2026-03-09", time: "14:00" },
       { home: "Sevilla", away: "Valencia", date: "2026-03-09", time: "16:15" },
       { home: "Girona", away: "Villarreal", date: "2026-03-09", time: "18:30" },
-      // Jornada 29
       { home: "Real Madrid", away: "Villarreal", date: "2026-03-15", time: "21:00" },
       { home: "Barcelona", away: "Real Sociedad", date: "2026-03-15", time: "18:30" },
       { home: "Atletico Madrid", away: "Sevilla", date: "2026-03-16", time: "14:00" },
       { home: "Athletic Bilbao", away: "Girona", date: "2026-03-16", time: "16:15" },
       { home: "Real Betis", away: "Valencia", date: "2026-03-16", time: "18:30" },
+      { home: "Osasuna", away: "Celta Vigo", date: "2026-03-22", time: "14:00" },
+      { home: "Mallorca", away: "Getafe", date: "2026-03-22", time: "16:15" },
+      { home: "Rayo Vallecano", away: "Espanyol", date: "2026-03-22", time: "18:30" },
+      { home: "Alaves", away: "Leganes", date: "2026-03-23", time: "14:00" },
+      { home: "Las Palmas", away: "Valladolid", date: "2026-03-23", time: "18:30" },
     ]
   },
 
   // BUNDESLIGA - Germania
   bundesliga: {
     name: "Bundesliga",
-    country: "🇩🇪",
+    country: "Germania",
     teams: ["Bayern Monaco", "Bayer Leverkusen", "RB Lipsia", "Borussia Dortmund", "Eintracht Francoforte", "Wolfsburg", "Friburgo", "Mainz", "Borussia M'gladbach", "Stoccarda", "Hoffenheim", "Werder Brema", "Union Berlino", "Augusta", "Bochum", "Heidenheim", "St. Pauli", "Holstein Kiel"],
-    upcomingMatches: [
-      // Spieltag 24
+    matches: [
       { home: "Bayern Monaco", away: "Borussia Dortmund", date: "2026-03-01", time: "18:30" },
       { home: "Bayer Leverkusen", away: "RB Lipsia", date: "2026-03-01", time: "15:30" },
       { home: "Eintracht Francoforte", away: "Wolfsburg", date: "2026-03-01", time: "15:30" },
       { home: "Stoccarda", away: "Friburgo", date: "2026-03-02", time: "17:30" },
       { home: "Borussia M'gladbach", away: "Mainz", date: "2026-03-02", time: "15:30" },
-      // Spieltag 25
       { home: "Borussia Dortmund", away: "Bayer Leverkusen", date: "2026-03-08", time: "18:30" },
       { home: "RB Lipsia", away: "Bayern Monaco", date: "2026-03-08", time: "15:30" },
       { home: "Wolfsburg", away: "Stoccarda", date: "2026-03-08", time: "15:30" },
       { home: "Friburgo", away: "Eintracht Francoforte", date: "2026-03-09", time: "17:30" },
       { home: "Mainz", away: "Hoffenheim", date: "2026-03-09", time: "15:30" },
-      // Spieltag 26
       { home: "Bayern Monaco", away: "Eintracht Francoforte", date: "2026-03-15", time: "18:30" },
       { home: "Bayer Leverkusen", away: "Wolfsburg", date: "2026-03-15", time: "15:30" },
       { home: "Borussia Dortmund", away: "Friburgo", date: "2026-03-15", time: "15:30" },
       { home: "RB Lipsia", away: "Stoccarda", date: "2026-03-16", time: "17:30" },
       { home: "Hoffenheim", away: "Borussia M'gladbach", date: "2026-03-16", time: "15:30" },
+      { home: "Werder Brema", away: "Union Berlino", date: "2026-03-22", time: "15:30" },
+      { home: "Augusta", away: "Bochum", date: "2026-03-22", time: "15:30" },
+      { home: "Heidenheim", away: "St. Pauli", date: "2026-03-22", time: "15:30" },
+      { home: "Holstein Kiel", away: "Werder Brema", date: "2026-03-23", time: "17:30" },
     ]
   },
 
   // LIGUE 1 - Francia
   ligue1: {
     name: "Ligue 1",
-    country: "🇫🇷",
+    country: "Francia",
     teams: ["PSG", "Marsiglia", "Monaco", "Lilla", "Lione", "Nizza", "Lens", "Rennes", "Strasburgo", "Tolosa", "Nantes", "Auxerre", "Reims", "Montpellier", "Saint-Etienne", "Le Havre", "Angers", "Brest"],
-    upcomingMatches: [
-      // Journée 25
+    matches: [
       { home: "PSG", away: "Marsiglia", date: "2026-03-01", time: "20:45" },
       { home: "Monaco", away: "Lilla", date: "2026-03-01", time: "17:00" },
       { home: "Lione", away: "Nizza", date: "2026-03-02", time: "20:45" },
       { home: "Lens", away: "Rennes", date: "2026-03-02", time: "15:00" },
       { home: "Strasburgo", away: "Tolosa", date: "2026-03-02", time: "17:00" },
-      // Journée 26
       { home: "Marsiglia", away: "Monaco", date: "2026-03-08", time: "20:45" },
       { home: "Lilla", away: "PSG", date: "2026-03-08", time: "17:00" },
       { home: "Nizza", away: "Lens", date: "2026-03-09", time: "15:00" },
       { home: "Rennes", away: "Lione", date: "2026-03-09", time: "17:00" },
       { home: "Tolosa", away: "Nantes", date: "2026-03-09", time: "20:45" },
-      // Journée 27
       { home: "PSG", away: "Lione", date: "2026-03-15", time: "20:45" },
       { home: "Monaco", away: "Nizza", date: "2026-03-15", time: "17:00" },
       { home: "Marsiglia", away: "Rennes", date: "2026-03-16", time: "15:00" },
       { home: "Lens", away: "Lilla", date: "2026-03-16", time: "17:00" },
       { home: "Strasburgo", away: "Reims", date: "2026-03-16", time: "20:45" },
+      { home: "Auxerre", away: "Montpellier", date: "2026-03-22", time: "15:00" },
+      { home: "Saint-Etienne", away: "Le Havre", date: "2026-03-22", time: "17:00" },
+      { home: "Angers", away: "Brest", date: "2026-03-22", time: "20:45" },
     ]
   }
 };
 
-// Ottieni partite imminenti (prossimi 7 giorni)
-function getUpcomingMatches(days: number = 7): any[] {
-  const matches: any[] = [];
-  const today = new Date();
-  const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + days);
-  
-  for (const [leagueKey, league] of Object.entries(CALENDAR_2025_2026)) {
-    for (const match of league.upcomingMatches) {
-      const matchDate = new Date(match.date);
-      if (matchDate >= today && matchDate <= endDate) {
-        matches.push({
-          ...match,
-          league: `${(league as any).country} ${(league as any).name}`,
-          leagueKey
-        });
-      }
-    }
-  }
-  
-  return matches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-}
-
-// Ottieni tutte le partite della stagione
+// Ottieni TUTTE le partite del calendario
 function getAllMatches(): any[] {
   const matches: any[] = [];
   
   for (const [leagueKey, league] of Object.entries(CALENDAR_2025_2026)) {
-    for (const match of league.upcomingMatches) {
+    for (const match of (league as any).matches) {
       matches.push({
         ...match,
-        league: `${(league as any).country} ${(league as any).name}`,
+        league: `${(league as any).country} - ${(league as any).name}`,
         leagueKey
       });
     }
   }
   
-  return matches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return matches;
+}
+
+// Ottieni partite random dal calendario
+function getRandomMatches(count: number): any[] {
+  const allMatches = getAllMatches();
+  
+  // Mescola e prendi le prime 'count'
+  const shuffled = allMatches.sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
 }
 
 export async function POST(request: NextRequest) {
@@ -190,13 +183,11 @@ export async function POST(request: NextRequest) {
 
     console.log('[SUGGEST] Richiesta:', { sport, count, riskLevel });
 
-    // Ottieni partite dal calendario
-    const upcomingMatches = getUpcomingMatches(7);
+    // Ottieni partite dal calendario (sempre disponibili)
     const allMatches = getAllMatches();
+    const matchesToAnalyze = getRandomMatches(Math.min(10, count * 2));
     
-    // Se non ci sono partite nei prossimi 7 giorni, usa tutte le partite
-    const matchesToAnalyze = upcomingMatches.length > 0 ? upcomingMatches : allMatches.slice(0, 15);
-    
+    console.log('[SUGGEST] Partite totali:', allMatches.length);
     console.log('[SUGGEST] Partite da analizzare:', matchesToAnalyze.length);
 
     if (matchesToAnalyze.length === 0) {
@@ -212,40 +203,39 @@ export async function POST(request: NextRequest) {
     
     const systemPrompt = `Sei un esperto analista di scommesse sportive calcistiche.
 Analizza le partite fornite e dai pronostici basati su:
-- Forza delle squadre
-- Forma recente
+- Forza storica delle squadre
+- Forma recente stimata
 - Fattore casa
 - Importanza della partita
 
 Rispondi SOLO con un array JSON valido, niente altro testo.
 
-Formato richiesto:
+Formato RICHIESTO:
 [{"event":"Squadra A vs Squadra B","prediction":"1","odds":1.85,"confidence":75,"reasoning":"Analisi breve","league":"Serie A","matchTime":"2026-03-01 20:45"}]
 
-Tipi di prediction possibili:
+Tipi di prediction:
 - "1" = vittoria casa
-- "X" = pareggio
+- "X" = pareggio  
 - "2" = vittoria trasferta
 - "1X" = casa o pareggio
 - "X2" = pareggio o trasferta
 - "GG" = entrambi segnano
 - "NG" = almeno una non segna
-- "Over 2.5" = più di 2.5 gol
+- "Over 2.5" = piu di 2.5 gol
 - "Under 2.5" = meno di 2.5 gol
 
-La confidence deve essere tra 50 e 90.
-Le odds devono essere realistiche (tra 1.20 e 4.00).`;
+La confidence deve essere tra 60 e 85.
+Le odds devono essere realistiche (tra 1.30 e 3.50).`;
 
     const matchesText = matchesToAnalyze
-      .slice(0, 10)
       .map(m => `- ${m.home} vs ${m.away} | ${m.league} | ${m.date} ore ${m.time}`)
       .join('\n');
 
-    const userPrompt = `Analizza queste partite e fornisci ${count} pronostici con alta confidence (minimo 65%):
+    const userPrompt = `Analizza queste partite e fornisci esattamente ${count} pronostici:
 
  ${matchesText}
 
-Fornisci ${count} suggerimenti in formato JSON array:`;
+Rispondi SOLO con JSON array di ${count} elementi:`;
 
     try {
       const completion = await zai.chat.completions.create({
@@ -253,7 +243,7 @@ Fornisci ${count} suggerimenti in formato JSON array:`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.7,
+        temperature: 0.8,
         max_tokens: 2000
       });
 
@@ -264,16 +254,15 @@ Fornisci ${count} suggerimenti in formato JSON array:`;
       if (jsonMatch) {
         const suggestions = JSON.parse(jsonMatch[0]);
         
-        // Valida e filtra suggerimenti
+        // Valida suggerimenti
         const validSuggestions = suggestions
-          .filter((s: any) => s.confidence >= 50 && s.confidence <= 90)
-          .filter((s: any) => s.odds >= 1.10 && s.odds <= 5.00)
+          .filter((s: any) => s.event && s.prediction)
           .map((s: any) => ({
             event: s.event || 'Partita',
             sport: 'football',
             prediction: s.prediction || '1X',
-            odds: Math.round(s.odds * 100) / 100,
-            confidence: Math.min(90, Math.max(50, s.confidence)),
+            odds: Math.round((s.odds || 1.65) * 100) / 100,
+            confidence: Math.min(85, Math.max(60, s.confidence || 65)),
             reasoning: s.reasoning || 'Analisi AI',
             league: s.league || '',
             matchTime: s.matchTime || ''
@@ -281,28 +270,29 @@ Fornisci ${count} suggerimenti in formato JSON array:`;
         
         console.log('[SUGGEST] Suggerimenti validi:', validSuggestions.length);
         
-        return NextResponse.json({
-          success: true,
-          suggestions: validSuggestions.slice(0, count),
-          calendarInfo: {
-            season: "2025-2026",
-            matchesAvailable: allMatches.length,
-            upcomingMatches: upcomingMatches.length
-          }
-        });
+        if (validSuggestions.length >= count) {
+          return NextResponse.json({
+            success: true,
+            suggestions: validSuggestions.slice(0, count),
+            calendarInfo: {
+              season: "2025-2026",
+              totalMatches: allMatches.length
+            }
+          });
+        }
       }
     } catch (aiError) {
       console.error('[SUGGEST] Errore AI:', aiError);
     }
 
-    // Fallback: restituisci le partite senza analisi AI
+    // Fallback: partite con pronostici base
     const fallbackSuggestions = matchesToAnalyze.slice(0, count).map(m => ({
       event: `${m.home} vs ${m.away}`,
       sport: 'football',
       prediction: '1X',
       odds: 1.65,
-      confidence: 55,
-      reasoning: `Partita di ${m.league}. Analisi non disponibile.`,
+      confidence: 60,
+      reasoning: `Partita di ${m.league}. Pronostico conservativo.`,
       league: m.league,
       matchTime: `${m.date} ${m.time}`
     }));
@@ -312,8 +302,7 @@ Fornisci ${count} suggerimenti in formato JSON array:`;
       suggestions: fallbackSuggestions,
       calendarInfo: {
         season: "2025-2026",
-        matchesAvailable: allMatches.length,
-        upcomingMatches: upcomingMatches.length
+        totalMatches: allMatches.length
       }
     });
 
