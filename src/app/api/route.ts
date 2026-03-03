@@ -4,24 +4,30 @@ const API_HOST = 'api-football-v1.p.rapidapi.com';
 
 export async function POST(request: NextRequest) {
   try {
-    const { count = 5, riskLevel = 'medium' } = await request.json();
-    
     const now = new Date();
     const todayISO = now.toISOString().split('T')[0];
-    
-    // --- INIZIO DIAGNOSTICA ---
-    const apiKey = process.env.RAPIDAPI_KEY;
 
-    // 1. Controlliamo se la chiave esiste
+    // 1. CONTROLLO VARIABILI AMBIENTE
+    const apiKey = process.env.RAPIDAPI_KEY;
+    const groqKey = process.env.GROQ_API_KEY;
+
+    // SE MANCA LA CHIAVE CALCIO, TI FACCIO VEDERE L'ERRORE A SCHERMO
     if (!apiKey) {
       return NextResponse.json({
-        success: false,
-        error: 'ERRORE CRITICO: Manca la variabile d\'ambiente RAPIDAPI_KEY su Vercel. Controlla il nome scritto nelle Environment Variables.',
-        suggestions: []
+        success: true, // Trucho per farlo apparire a video
+        suggestions: [{
+          event: "⚠️ ERRORE CONFIGURAZIONE",
+          league: "Vercel",
+          prediction: "Manca RAPIDAPI_KEY",
+          confidence: 100,
+          odds: 0,
+          reasoning: "Vai su Vercel > Settings > Environment Variables e aggiungi 'RAPIDAPI_KEY'. Poi fai Redeploy.",
+          sport: "error"
+        }]
       });
     }
 
-    // 2. Chiamata API con gestione errori dettagliata
+    // 2. CHIAMATA API REALE
     const url = `https://${API_HOST}/v3/fixtures?date=${todayISO}`;
     
     const res = await fetch(url, {
@@ -32,91 +38,100 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Se l'API risponde con un errore (es. 403 Forbidden = Key sbagliata)
+    // SE L'API DA ERRORE (ES. KEY SBAGLIATA), LO MOSTRO A VIDEO
     if (!res.ok) {
       const errorText = await res.text();
       return NextResponse.json({
-        success: false,
-        error: `Errore risposta API: Status ${res.status}. Messaggio: ${errorText}. (Se è 403, la tua API Key è sbagliata o scaduta)`,
-        suggestions: []
+        success: true,
+        suggestions: [{
+          event: `🚨 ERRORE API (Codice ${res.status})`,
+          league: "RapidAPI",
+          prediction: "Chiave non valida",
+          confidence: 100,
+          reasoning: `L'API dice: "${errorText}". Significa che la tua chiave API è sbagliata o scaduta.`,
+          sport: "error"
+        }]
       });
     }
 
     const data = await res.json();
     const allFixtures = data.response || [];
-    const errors = data.errors || {};
 
-    // Se ci sono errori interni nei dati
-    if (Object.keys(errors).length > 0) {
-       return NextResponse.json({
-        success: false,
-        error: `Errore nei dati API: ${JSON.stringify(errors)}`,
-        suggestions: []
-      });
-    }
-
-    // 3. Controlliamo se ci sono partite
+    // SE NON CI SONO PARTITE, AVVERTO A VIDEO
     if (allFixtures.length === 0) {
-       return NextResponse.json({
+      return NextResponse.json({
         success: true,
-        suggestions: [],
-        message: `Nessuna partita trovata nel mondo per la data ${todayISO}. Nota: Serie A e Premier League sono finite. Attivi solo Europei/Coppe.`,
-        debug_total: 0
+        suggestions: [{
+          event: "ℹ️ NESSUNA PARTITA",
+          league: todayISO,
+          prediction: "Nessun match oggi",
+          confidence: 0,
+          reasoning: `L'API non ha trovato partite per la data ${todayISO}. I campionati maggiori sono finiti. Ci sono solo coppe o amichevoli.`,
+          sport: "info"
+        }]
       });
     }
-    // --- FINE DIAGNOSTICA ---
 
-
-    // Processiamo le partite trovate
+    // 3. PROCESSO REALE
     const allMatches = allFixtures.map((fix: any) => ({
       id: fix.fixture.id,
       homeTeam: fix.teams.home.name,
       awayTeam: fix.teams.away.name,
       league: fix.league.name,
-      time: fix.fixture.date,
-      hour: new Date(fix.fixture.date).getUTCHours(),
-      minute: new Date(fix.fixture.date).getUTCMinutes()
+      time: fix.fixture.date
     }));
 
-    // Filtro orario
     const nowDate = new Date();
     const upcomingMatches = allMatches.filter(m => new Date(m.time) > nowDate);
     
-    // AI Analysis (semplificata per velocizzare il test)
+    if (upcomingMatches.length === 0) {
+         return NextResponse.json({
+        success: true,
+        suggestions: [{
+          event: "ℹ️ ORARIO",
+          league: "Partite finite",
+          prediction: "Controlla orologino",
+          confidence: 0,
+          reasoning: `Ci sono ${allMatches.length} partite oggi, ma sono tutte GIA' INIZIATE o finite.`,
+          sport: "info"
+        }]
+      });
+    }
+
     const analyzedMatches = [];
-    for (const match of upcomingMatches.slice(0, 5)) { // Limitiamo a 5 per test
-      const analysis = await analyzeMatchWithAI(match);
+    for (const match of upcomingMatches) {
+      const analysis = await analyzeMatchWithAI(match, groqKey);
       if (analysis) analyzedMatches.push(analysis);
     }
     
-    let minConfidence = 70;
-    if (riskLevel === 'low') minConfidence = 80;
-    if (riskLevel === 'high') minConfidence = 60;
-    
-    const highConfidenceMatches = analyzedMatches.filter(m => m.confidence >= minConfidence);
-    
     return NextResponse.json({
       success: true,
-      suggestions: highConfidenceMatches,
-      totalFound: upcomingMatches.length,
-      debug_total_api_fixtures: allFixtures.length,
-      date: todayISO
+      suggestions: analyzedMatches,
+      totalFound: upcomingMatches.length
     });
 
   } catch (e: any) {
-    return NextResponse.json({ success: false, error: e.message, stack: e.stack }, { status: 500 });
+    // ERRORE IMPREVISTO GENERICO
+    return NextResponse.json({
+      success: true,
+      suggestions: [{
+        event: "💥 ERRORE CRITICO",
+        league: "Sistema",
+        prediction: "Vedi dettagli",
+        reasoning: e.message,
+        sport: "error"
+      }]
+    });
   }
 }
 
-// Funzione AI (invariata)
-async function analyzeMatchWithAI(match: any): Promise<any | null> {
-  const KEY = process.env.GROQ_API_KEY;
-  if (!KEY) return getBasicAnalysis(match);
+async function analyzeMatchWithAI(match: any, groqKey: string | undefined): Promise<any | null> {
+  if (!groqKey) return getBasicAnalysis(match);
   
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
