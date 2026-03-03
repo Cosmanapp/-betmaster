@@ -1,24 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
-  // 1. Controllo chiave API
   const apiKey = process.env.RAPIDAPI_KEY;
+  const today = new Date().toISOString().split('T')[0];
 
-  if (!apiKey) {
+  // FUNZIONE PER MOSTRARE ERRORI A SCHERMO
+  // Usiamo confidence 100 e success true per aggirare i filtri del frontend
+  const showError = (title: string, msg: string) => {
     return NextResponse.json({
-      success: false,
+      success: true,
       suggestions: [{
-        event: "ERRORE CONFIG",
-        reasoning: "Manca la variabile RAPIDAPI_KEY su Vercel. Controlla il nome esatto.",
-        prediction: "ERRORE", confidence: 0, odds: 0, sport: "error"
+        event: `⚠️ ${title}`,
+        league: "Diagnostica",
+        prediction: "Vedi Dettagli",
+        confidence: 100,
+        odds: 0,
+        reasoning: msg,
+        sport: "football"
       }]
     });
+  };
+
+  // 1. Controllo se la chiave esiste su Vercel
+  if (!apiKey) {
+    return showError("CONFIGURAZIONE MANCANTE", 
+      "Su Vercel non c'è nessuna variabile chiamata RAPIDAPI_KEY. Aggiungila nelle Environment Variables."
+    );
   }
 
-  // 2. Chiamata API Reale
-  const today = new Date().toISOString().split('T')[0];
-  const url = 'https://api-football-v1.p.rapidapi.com/v3/fixtures?date=' + today;
-
+  // 2. Chiamata all'API Reale
+  const url = `https://api-football-v1.p.rapidapi.com/v3/fixtures?date=${today}`;
+  
   try {
     const response = await fetch(url, {
       method: 'GET',
@@ -28,61 +40,38 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // 3. Gestione errori API
+    // 3. Se l'API risponde con un errore (es. 403 Forbidden, 401 Unauthorized)
     if (!response.ok) {
-      const errorText = await response.text();
-      // Messaggio diviso in più righe per evitare errori di sintassi
-      const msg = "Errore API Codice " + response.status + ": " + errorText;
-      
-      return NextResponse.json({
-        success: false,
-        suggestions: [{
-          event: "ERRORE API",
-          reasoning: msg,
-          prediction: "ERRORE", confidence: 0, odds: 0, sport: "error"
-        }]
-      });
+      const errorBody = await response.text();
+      return showError(`ERRORE API (Codice ${response.status})`, 
+        `L'API rifiuta l'accesso. Risposta: "${errorBody}". Verifica se la tua chiave RapidAPI è valida o se il piano gratuito è scaduto.`
+      );
     }
 
     const data = await response.json();
     const matches = data.response || [];
 
-    // 4. Se non ci sono partite
+    // 4. Se l'API risponde OK ma non ci sono partite
     if (matches.length === 0) {
-       return NextResponse.json({
-        success: true,
-        suggestions: [{
-          event: "NESSUNA PARTITA",
-          reasoning: "Nessuna partita trovata per oggi (" + today + ").",
-          prediction: "INFO", confidence: 0, odds: 0, sport: "info"
-        }]
-      });
+      return showError("NESSUNA PARTITA TROVATA", 
+        `L'API funziona! Ma per la data di oggi (${today}) non risultano partite nei campionati disponibili col piano gratuito.`
+      );
     }
 
-    // 5. Successo: mostriamo le partite trovate
-    const results = [];
-    for (const m of matches.slice(0, 5)) {
-      results.push({
-        event: m.teams.home.name + " vs " + m.teams.away.name,
-        league: m.league.name,
-        prediction: "OK",
-        confidence: 50,
-        odds: 0,
-        reasoning: "Partita reale trovata dall'API!",
-        sport: "football"
-      });
-    }
+    // 5. Se tutto funziona, restituisco le partite vere
+    const results = matches.map((m: any) => ({
+      event: `${m.teams.home.name} vs ${m.teams.away.name}`,
+      league: m.league.name,
+      prediction: "ANALISI...",
+      confidence: 50,
+      odds: 0,
+      reasoning: "Partita reale trovata!",
+      sport: "football"
+    }));
 
     return NextResponse.json({ success: true, suggestions: results });
 
   } catch (e: any) {
-    return NextResponse.json({
-      success: false,
-      suggestions: [{
-        event: "ERRORE GENERICO",
-        reasoning: e.message,
-        prediction: "ERRORE", confidence: 0, odds: 0, sport: "error"
-      }]
-    });
+    return showError("ERRORE DI CONNESSIONE", e.message);
   }
 }
