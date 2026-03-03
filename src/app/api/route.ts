@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   const apiKey = process.env.RAPIDAPI_KEY;
-  const url = 'https://free-api-live-football-data.p.rapidapi.com/football-get-all-list-by-date?date=20240520';
+  // DATA AGGIORNATA AL 3 MARZO 2026
+  const url = 'https://free-api-live-football-data.p.rapidapi.com/football-get-all-list-by-date?date=20260303';
 
   if (!apiKey) {
     return NextResponse.json({ error: "Chiave API mancante su Vercel" }, { status: 500 });
