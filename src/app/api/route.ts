@@ -3,8 +3,9 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const apiKey = process.env.RAPIDAPI_KEY;
   
-  // Proviamo l'endpoint senza prefissi, come indicato nelle versioni più recenti
-  const url = 'https://free-api-live-football-data.p.rapidapi.com/all-list';
+  // URL costruito esattamente sulla base del tuo snippet curl
+  // 'football-get-all-list-by-date' è il compagno di 'football-get-match-all-stats'
+  const url = 'https://free-api-live-football-data.p.rapidapi.com/football-get-all-list-by-date?date=20260303';
 
   if (!apiKey) {
     return NextResponse.json({ error: "Chiave mancante su Vercel" }, { status: 500 });
