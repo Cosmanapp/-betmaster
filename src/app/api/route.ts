@@ -5,58 +5,66 @@ export async function POST(request: NextRequest) {
   const todayISO = today.toISOString().split('T')[0];
   const apiKey = process.env.RAPIDAPI_KEY;
 
-  // Se manca la chiave, creiamo un "falso pronostico" visibile
-  if (!apiKey) {
+  // Funzione helper per mostrare errori a schermo
+  const showError = (title, msg) => {
     return NextResponse.json({
       success: true,
       suggestions: [{
-        event: "⚠️ CONFIGURAZIONE RICHIESTA",
-        league: "Sistema", // Campo obbligatorio
-        prediction: "API Key Mancante",
-        confidence: 85, // Confidence alto per superare i filtri
-        odds: 1.50, // Campo obbligatorio
-        reasoning: "Vai su Vercel > Settings > Environment Variables e aggiungi 'RAPIDAPI_KEY'. Senza questa chiave, l'app non può scaricare le partite.",
+        event: title,
+        league: "Sistema",
+        prediction: "Errore",
+        confidence: 99,
+        odds: 1.01,
+        reasoning: msg,
         sport: "football"
       }]
     });
+  };
+
+  // 1. Controllo chiave
+  if (!apiKey) {
+    return showError("CHIAVE MANCANTE", "Vai su Vercel Settings e aggiungi RAPIDAPI_KEY.");
   }
 
-  // Tentativo di chiamata API
+  // 2. Chiamata API
+  const url = "https://api-football-v1.p.rapidapi.com/v3/fixtures?date=" + todayISO;
+  
   try {
-    const res = await fetch(`https://api-football-v1.p.rapidapi.com/v3/fixtures?date=${todayISO}`, {
+    const res = await fetch(url, {
       headers: {
         'x-rapidapi-key': apiKey,
         'x-rapidapi-host': 'api-football-v1.p.rapidapi.com'
       }
     });
 
+    // 3. Se l'API risponde male
     if (!res.ok) {
-      // Se l'API risponde con errore, creiamo un "falso pronostico" di errore
-      return NextResponse.json({
-        success: true,
-        suggestions: [{
-          event: `❌ ERRORE API (Codice ${res.status})`,
-          league: "RapidAPI",
-          prediction: "Chiave Non Valida",
-          confidence: 85,
-          odds: 1.50,
-          reasoning: `La tua chiave API è stata rifiutata. Verifica su RapidAPI.com se è attiva o se hai superato il limite gratuito.`,
-          sport: "football"
-        }]
-      });
+      const errText = await res.text();
+      return showError("API ERRORE " + res.status, "Risposta: " + errText);
     }
 
     const data = await res.json();
     const matches = data.response || [];
 
-    // Se non ci sono partite, avvisiamo con un "falso pronostico" informativo
+    // 4. Se non ci sono partite
     if (matches.length === 0) {
-      return NextResponse.json({
-        success: true,
-        suggestions: [{
-          event: "ℹ️ NESSUNA PARTITA OGGI",
-          league: todayISO,
-          prediction: "Calendario Vuoto",
-          confidence: 85,
-          odds: 1.50,
-          reasoning: `L'API risponde correttamente ma
+      return showError("NESSUNA PARTITA", "Nessuna partita trovata per oggi: " + todayISO);
+    }
+
+    // 5. Successo
+    const results = matches.map((m) => ({
+      event: m.teams.home.name + " vs " + m.teams.away.name,
+      league: m.league.name,
+      prediction: "OK",
+      confidence: 75,
+      odds: 1.80,
+      reasoning: "Partita trovata con successo.",
+      sport: "football"
+    }));
+
+    return NextResponse.json({ success: true, suggestions: results });
+
+  } catch (e) {
+    return showError("ECCEZIONE", e.message);
+  }
+}
