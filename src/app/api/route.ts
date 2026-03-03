@@ -3,8 +3,9 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const apiKey = process.env.RAPIDAPI_KEY;
   
-  // URL SENZA il prefisso "football-", come suggerito dai nuovi standard RapidAPI
-  const url = 'https://free-api-live-football-data.p.rapidapi.com/get-all-list-by-date?date=20260303';
+  // URL corretto estratto dal tuo snippet RapidAPI
+  // Ho cambiato solo la parte finale per darti l'elenco completo di oggi
+  const url = 'https://free-api-live-football-data.p.rapidapi.com/football-get-all-list-by-date?date=20260303';
 
   if (!apiKey) {
     return NextResponse.json({ error: "Chiave mancante su Vercel" }, { status: 500 });
@@ -17,7 +18,7 @@ export async function GET() {
         'x-rapidapi-key': apiKey,
         'x-rapidapi-host': 'free-api-live-football-data.p.rapidapi.com'
       },
-      cache: 'no-store'
+      next: { revalidate: 0 }
     });
 
     const data = await res.json();
