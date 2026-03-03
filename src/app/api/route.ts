@@ -3,11 +3,11 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const apiKey = process.env.RAPIDAPI_KEY;
   
-  // URL AGGIORNATO: Rimosso "football-" che causava l'errore 404
-  const url = 'https://free-api-live-football-data.p.rapidapi.com/get-all-list-by-date?date=20260303';
+  // Proviamo l'endpoint più semplice e universale dell'API
+  const url = 'https://free-api-live-football-data.p.rapidapi.com/football-all-list';
 
   if (!apiKey) {
-    return NextResponse.json({ error: "Chiave API mancante su Vercel" }, { status: 500 });
+    return NextResponse.json({ error: "Chiave API mancante" }, { status: 500 });
   }
 
   try {
@@ -24,6 +24,6 @@ export async function GET() {
     return NextResponse.json(data);
     
   } catch (e) {
-    return NextResponse.json({ error: "Errore di connessione al server API" }, { status: 500 });
+    return NextResponse.json({ error: "Errore di connessione" }, { status: 500 });
   }
 }
