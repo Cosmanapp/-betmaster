@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const apiKey = process.env.RAPIDAPI_KEY;
   
-  // URL aggiornato: Usiamo 'football-all-list' che è l'endpoint base per i match
-  const url = 'https://free-api-live-football-data.p.rapidapi.com/football-all-list';
+  // Proviamo l'endpoint senza prefissi, come indicato nelle versioni più recenti
+  const url = 'https://free-api-live-football-data.p.rapidapi.com/all-list';
 
   if (!apiKey) {
     return NextResponse.json({ error: "Chiave mancante su Vercel" }, { status: 500 });
