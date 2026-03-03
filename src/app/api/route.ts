@@ -1,77 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
+  // 1. Prende la data REALE dal server (il tuo "oggi")
+  const today = new Date();
+  const todayISO = today.toISOString().split('T')[0];
+  
   const apiKey = process.env.RAPIDAPI_KEY;
-  const today = new Date().toISOString().split('T')[0];
 
-  // FUNZIONE PER MOSTRARE ERRORI A SCHERMO
-  // Usiamo confidence 100 e success true per aggirare i filtri del frontend
-  const showError = (title: string, msg: string) => {
+  // 2. Se manca la chiave, lo dice chiaramente
+  if (!apiKey) {
     return NextResponse.json({
       success: true,
       suggestions: [{
-        event: `⚠️ ${title}`,
-        league: "Diagnostica",
-        prediction: "Vedi Dettagli",
+        event: "⚠️ MANCA LA CHIAVE",
+        league: "Vercel",
+        prediction: "ERRORE",
         confidence: 100,
-        odds: 0,
-        reasoning: msg,
-        sport: "football"
+        reasoning: "Vai su Vercel > Settings > Environment Variables e aggiungi RAPIDAPI_KEY.",
+        sport: "error"
       }]
     });
-  };
-
-  // 1. Controllo se la chiave esiste su Vercel
-  if (!apiKey) {
-    return showError("CONFIGURAZIONE MANCANTE", 
-      "Su Vercel non c'è nessuna variabile chiamata RAPIDAPI_KEY. Aggiungila nelle Environment Variables."
-    );
   }
 
-  // 2. Chiamata all'API Reale
-  const url = `https://api-football-v1.p.rapidapi.com/v3/fixtures?date=${today}`;
-  
+  // 3. Chiamata all'API reale per la data di oggi
   try {
-    const response = await fetch(url, {
-      method: 'GET',
+    const res = await fetch(`https://api-football-v1.p.rapidapi.com/v3/fixtures?date=${todayISO}`, {
       headers: {
         'x-rapidapi-key': apiKey,
         'x-rapidapi-host': 'api-football-v1.p.rapidapi.com'
       }
     });
 
-    // 3. Se l'API risponde con un errore (es. 403 Forbidden, 401 Unauthorized)
-    if (!response.ok) {
-      const errorBody = await response.text();
-      return showError(`ERRORE API (Codice ${response.status})`, 
-        `L'API rifiuta l'accesso. Risposta: "${errorBody}". Verifica se la tua chiave RapidAPI è valida o se il piano gratuito è scaduto.`
-      );
+    if (!res.ok) {
+      return NextResponse.json({
+        success: true,
+        suggestions: [{
+          event: `❌ API ERRORE ${res.status}`,
+          league: "RapidAPI",
+          prediction: "CONTROLLA KEY",
+          confidence: 100,
+          reasoning: `La chiave è rifiutata o scaduta. Risposta API: ${await res.text()}`,
+          sport: "error"
+        }]
+      });
     }
 
-    const data = await response.json();
+    const data = await res.json();
     const matches = data.response || [];
 
-    // 4. Se l'API risponde OK ma non ci sono partite
     if (matches.length === 0) {
-      return showError("NESSUNA PARTITA TROVATA", 
-        `L'API funziona! Ma per la data di oggi (${today}) non risultano partite nei campionati disponibili col piano gratuito.`
-      );
+      return NextResponse.json({
+        success: true,
+        suggestions: [{
+          event: "ℹ️ NESSUNA PARTITA",
+          league: todayISO,
+          prediction: "VUOTO",
+          confidence: 100,
+          reasoning: `L'API risponde, ma non ci sono partite per la data: ${todayISO}.`,
+          sport: "info"
+        }]
+      });
     }
 
-    // 5. Se tutto funziona, restituisco le partite vere
-    const results = matches.map((m: any) => ({
+    // 4. Se ci sono partite, le mostra
+    const suggestions = matches.map((m: any) => ({
       event: `${m.teams.home.name} vs ${m.teams.away.name}`,
       league: m.league.name,
-      prediction: "ANALISI...",
+      prediction: "CARICATO",
       confidence: 50,
       odds: 0,
-      reasoning: "Partita reale trovata!",
+      reasoning: "Partita reale caricata con successo dall'API.",
       sport: "football"
     }));
 
-    return NextResponse.json({ success: true, suggestions: results });
+    return NextResponse.json({ success: true, suggestions });
 
   } catch (e: any) {
-    return showError("ERRORE DI CONNESSIONE", e.message);
+    return NextResponse.json({
+      success: true,
+      suggestions: [{
+        event: "💥 ERRORE CRITICO",
+        league: "Sistema",
+        prediction: "CATCH",
+        confidence: 100,
+        reasoning: e.message,
+        sport: "error"
+      }]
+    });
   }
 }
