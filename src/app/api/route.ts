@@ -1,18 +1,17 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  // Prende la chiave che hai salvato su Vercel
   const chiave = process.env.RAPIDAPI_KEY; 
-
-  // Questo è l'indirizzo per le partite di oggi
-  const url = 'https://v3.football.api-sports.io/fixtures?date=2026-03-04';
+  
+  // Usiamo l'indirizzo standard senza filtri complessi per testare
+  const url = 'https://v3.football.api-sports.io/fixtures?live=all';
 
   try {
     const risposta = await fetch(url, {
       method: 'GET',
       headers: {
-        // Questa è la "firma" richiesta dal nuovo fornitore
-        'x-apisports-key': chiave || '', 
+        // Assicuriamoci che non ci siano spazi nella chiave
+        'x-apisports-key': chiave ? chiave.trim() : '', 
       },
       next: { revalidate: 0 }
     });
