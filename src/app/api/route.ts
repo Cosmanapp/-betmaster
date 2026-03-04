@@ -1,22 +1,27 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const apiKey = process.env.RAPIDAPI_KEY;
-  // Usiamo l'indirizzo base che abbiamo visto nel tuo screenshot
-  const url = 'https://free-api-live-football-data.p.rapidapi.com/football-get-all-list-by-date?date=20260303';
+  // Se hai cambiato nome alla variabile su Vercel, usa quello qui sotto
+  const apiKey = process.env.RAPIDAPI_KEY; 
+  
+  // Endpoint ufficiale di API-FOOTBALL per i match di oggi
+  const url = 'https://v3.football.api-sports.io/fixtures?date=2026-03-04';
 
   try {
     const res = await fetch(url, {
+      method: 'GET',
       headers: {
-        'x-rapidapi-key': apiKey || '',
-        'x-rapidapi-host': 'free-api-live-football-data.p.rapidapi.com'
+        'x-apisports-key': apiKey || '', // Nota: qui si usa x-apisports-key
       },
-      cache: 'no-store'
+      next: { revalidate: 0 }
     });
 
     const data = await res.json();
+
+    // Se l'API risponde con errori di licenza o altro, lo vedremo qui
     return NextResponse.json(data);
-  } catch (error) {
-    return NextResponse.json({ message: "Errore critico di connessione" }, { status: 500 });
+    
+  } catch (e) {
+    return NextResponse.json({ error: "Errore di connessione al nuovo provider" }, { status: 500 });
   }
 }
