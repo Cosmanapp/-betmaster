@@ -3,11 +3,11 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const footballKey = process.env.FOOTBALL_API_KEY;
 
-  // Prendiamo la data di OGGI in formato YYYY-MM-DD
-  const oggi = new Date().toISOString().split('T')[0];
+  // Forziamo la data di domani: 2026-03-06
+  const dataTarget = "2026-03-06";
   
-  // Rimuoviamo il filtro per campionato (&league=39) per vedere TUTTO quello che c'è
-  const url = `https://v3.football.api-sports.io/fixtures?date=${oggi}`;
+  // Cerchiamo tutti i match di domani (senza filtri di lega per ora)
+  const url = `https://v3.football.api-sports.io/fixtures?date=${dataTarget}`;
 
   try {
     const res = await fetch(url, {
@@ -17,13 +17,13 @@ export async function GET() {
     
     const data = await res.json();
     
-    // Filtriamo solo i match che devono ancora iniziare (NS = Not Started)
-    // e ne prendiamo solo 5 per non sovraccaricare l'AI
-    const matchDaIniziare = data.response
+    // Prendiamo solo i match che non sono ancora iniziati (NS)
+    // Ne prendiamo 8 per avere una bella lista
+    const matches = data.response
       ?.filter((m: any) => m.fixture.status.short === 'NS')
-      .slice(0, 5) || [];
+      .slice(0, 8) || [];
 
-    return NextResponse.json(matchDaIniziare);
+    return NextResponse.json(matches);
   } catch (e) {
     return NextResponse.json([]);
   }
