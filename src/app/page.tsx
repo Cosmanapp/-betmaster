@@ -4,24 +4,20 @@ import React, { useState, useEffect } from 'react';
 export default function BettingPro() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     async function fetchAndAnalyze() {
       try {
         const res = await fetch('/api/bets');
-        if (!res.ok) throw new Error("Errore nel recupero dei match");
-        
         const rawMatches = await res.json();
+        
         if (!rawMatches || rawMatches.length === 0) {
           setLoading(false);
           return;
         }
 
-        // Proviamo ad analizzarne solo 1 per testare la velocità
-        const firstMatch = rawMatches.slice(0, 1);
-
-        const analyzed = await Promise.all(firstMatch.map(async (m: any) => {
+        // Analizziamo i match uno per uno inviandoli a Groq
+        const analyzed = await Promise.all(rawMatches.map(async (m: any) => {
           try {
             const aiRes = await fetch('/api/analyze', {
               method: 'POST',
@@ -35,13 +31,13 @@ export default function BettingPro() {
             const aiData = await aiRes.json();
             return { ...m, ai_tip: aiData.consiglio, ai_reason: aiData.perche };
           } catch (err) {
-            return { ...m, ai_tip: "N/A", ai_reason: "Errore durante l'analisi dell'AI" };
+            return { ...m, ai_tip: "Analisi...", ai_reason: "Errore di connessione con Groq" };
           }
         }));
 
         setMatches(analyzed);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e) {
+        console.error(e);
       } finally {
         setLoading(false);
       }
@@ -49,33 +45,47 @@ export default function BettingPro() {
     fetchAndAnalyze();
   }, []);
 
-  if (error) return <div style={{color: 'red', padding: '20px'}}>Errore: {error}</div>;
-
   return (
-    <div style={{ background: 'black', color: 'white', minHeight: '100vh', padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1 style={{ color: '#22c55e', borderBottom: '2px solid #22c55e', paddingBottom: '10px' }}>
-        BETTING PRO AI
-      </h1>
+    <div style={{ background: '#000', color: '#fff', minHeight: '100vh', padding: '20px', fontFamily: 'sans-serif' }}>
+      <header style={{ borderBottom: '2px solid #22c55e', marginBottom: '30px', paddingBottom: '10px' }}>
+        <h1 style={{ color: '#22c55e', margin: 0, fontStyle: 'italic', fontWeight: '900' }}>BETTING PRO AI</h1>
+        <p style={{ fontSize: '10px', color: '#666' }}>ANALISI REAL-TIME: GROQ + API-SPORTS</p>
+      </header>
       
-      {loading ? (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
-          <p style={{ color: '#22c55e' }}>L'AI sta analizzando i match... attendere...</p>
-        </div>
-      ) : matches.length === 0 ? (
-        <p style={{ color: '#666' }}>Nessun match trovato per oggi o domani.</p>
-      ) : (
-        matches.map((match: any, i: number) => (
-          <div key={i} style={{ border: '1px solid #333', margin: '20px 0', padding: '20px', borderRadius: '15px', backgroundColor: '#111' }}>
-            <h2 style={{ margin: '0 0 10px 0' }}>{match.teams.home.name} vs {match.teams.away.name}</h2>
-            <div style={{ backgroundColor: '#22c55e', color: 'black', display: 'inline-block', padding: '5px 15px', borderRadius: '5px', fontWeight: 'bold' }}>
-              PRONOSTICO: {match.ai_tip}
-            </div>
-            <p style={{ color: '#aaa', marginTop: '15px', fontStyle: 'italic', borderLeft: '3px solid #22c55e', paddingLeft: '10px' }}>
-              "{match.ai_reason}"
-            </p>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '50px' }}>
+            <div style={{ border: '4px solid #22c55e', borderTop: '4px solid transparent', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }}></div>
+            <p style={{ color: '#22c55e', fontWeight: 'bold' }}>L'AI STA ANALIZZANDO I MATCH DI DOMANI...</p>
           </div>
-        ))
-      )}
+        ) : matches.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#444', border: '1px dashed #444', padding: '40px', borderRadius: '20px' }}>
+            Nessun match trovato per il 6 Marzo. Prova a ricaricare tra poco.
+          </div>
+        ) : (
+          matches.map((match: any, i: number) => (
+            <div key={i} style={{ background: '#111', border: '1px solid #222', borderLeft: '6px solid #22c55e', borderRadius: '15px', padding: '20px', marginBottom: '20px shadow: 0 10px 15px -3px rgba(0,0,0,0.5)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontSize: '10px', color: '#22c55e', fontWeight: 'bold' }}>{match.league.name}</span>
+                  <h2 style={{ margin: '5px 0', fontSize: '20px' }}>{match.teams.home.name} <span style={{ color: '#444' }}>vs</span> {match.teams.away.name}</h2>
+                </div>
+                <div style={{ background: '#22c55e', color: '#000', padding: '8px 15px', borderRadius: '8px', fontWeight: 'bold' }}>
+                  {match.ai_tip}
+                </div>
+              </div>
+              <div style={{ marginTop: '15px', background: '#000', padding: '15px', borderRadius: '10px', fontSize: '14px', color: '#ccc', fontStyle: 'italic' }}>
+                <span style={{ color: '#22c55e', fontWeight: 'bold', fontStyle: 'normal', display: 'block', fontSize: '10px', marginBottom: '5px' }}>AI INSIGHT:</span>
+                "{match.ai_reason}"
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <style jsx global>{`
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
