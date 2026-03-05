@@ -1,32 +1,10 @@
-import { NextResponse } from 'next/server';
+const prompt = `Agisci come un analista di scommesse professionista esperto in mercati asiatici e value betting.
+Analizza il match: ${home} vs ${away} in ${league}.
 
-export async function POST(req: Request) {
-  try {
-    const { home, away, league } = await req.json();
-    const groqKey = process.env.GROQ_API_KEY;
+COMPITI:
+1. Devi essere audace: cerca Handicap Asiatici (es: AH -0.25, AH +1.0) o Somma Gol Asiatica (Over 2.25, Under 2.75).
+2. Se prevedi una vittoria netta, usa Handicap. Se prevedi equilibrio, usa mercati Combo o DNB (Draw No Bet).
+3. Spiega la motivazione tecnica (es. assenze, xG, trend casa/trasferta).
+4. Evita pronostici banali come 1X o X2 a meno che non ci sia una quota di valore altissima.
 
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${groqKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: "llama3-8b-8192", // Modello più veloce per evitare errori
-        messages: [{ 
-          role: "user", 
-          content: `Analizza match: ${home} vs ${away} (${league}). Dammi un pronostico esperto e un motivo tecnico. Rispondi in JSON: {"consiglio": "...", "perche": "..."}` 
-        }],
-        response_format: { type: "json_object" }
-      })
-    });
-
-    const data = await groqRes.json();
-    // Se Groq risponde con errore di rate limit, lo gestiamo
-    if (data.error) throw new Error(data.error.message);
-
-    return NextResponse.json(JSON.parse(data.choices[0].message.content));
-  } catch (e) {
-    return NextResponse.json({ consiglio: "Puntata 1X", perche: "Analisi basata sui precedenti storici e forma attuale." });
-  }
-}
+Rispondi in JSON: {"consiglio": "PRONOSTICO_ASIATICO", "perche": "ANALISI_PROFESSIONALE"}`;
