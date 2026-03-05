@@ -1,11 +1,8 @@
-import './globals.css';
-import { Inter } from 'next/font/google';
-
-const inter = Inter({ subsets: ['latin'] });
+import "./globals.css";
 
 export const metadata = {
-  title: 'BetMaster - Pronostici',
-  description: 'Analisi e pronostici sportivi',
+  title: "BetMaster AI",
+  description: "Pronostici con Intelligenza Artificiale",
 };
 
 export default function RootLayout({
@@ -15,10 +12,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it">
-      <body className={inter.className}>
-        <main>
-          {children}
-        </main>
+      <body style={{ margin: 0, backgroundColor: 'black' }}>
+        {children}
       </body>
     </html>
   );
