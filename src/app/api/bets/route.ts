@@ -1,13 +1,4 @@
-import { NextResponse } from 'next/server';
-
-export async function GET() {
-  const chiave = process.env.FOOTBALL_API_KEY; 
-  
-  // Usiamo un filtro che il piano FREE accetta sicuramente: le partite di una data specifica
-  // (Ho messo la data di oggi 5 Marzo 2026)
-  const url = 'https://v3.football.api-sports.io/fixtures?date=2026-03-05';
-
-  try {
+try {
     const risposta = await fetch(url, {
       method: 'GET',
       headers: {
@@ -17,9 +8,14 @@ export async function GET() {
     });
 
     const dati = await risposta.json();
-    return NextResponse.json(dati);
     
-  } catch (errore) {
-    return NextResponse.json({ messaggio: "Errore di connessione" }, { status: 500 });
+    // Aggiungiamo i permessi per la grafica
+    return NextResponse.json(dati, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, x-apisports-key',
+      },
+    });
+    
   }
-}
