@@ -5,7 +5,7 @@ export async function GET() {
   const chiave = process.env.RAPIDAPI_KEY; 
   
   // Indirizzo per vedere tutte le partite in diretta (test più veloce)
-  const url = 'https://v3.football.api-sports.io/fixtures?live=all';
+  const url = 'https://v3.football.api-sports.io/fixtures?
 
   try {
     const risposta = await fetch(url, {
