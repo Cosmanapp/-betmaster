@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  // Utilizziamo il nome corretto della variabile che abbiamo impostato su Vercel
   const chiave = process.env.FOOTBALL_API_KEY; 
   
-  // URL di test: Premier League (League 39) stagione 2024
-  const url = 'https://v3.football.api-sports.io/fixtures?league=39&season=2024&last=10';
+  // Usiamo un filtro che il piano FREE accetta sicuramente: le partite di una data specifica
+  // (Ho messo la data di oggi 5 Marzo 2026)
+  const url = 'https://v3.football.api-sports.io/fixtures?date=2026-03-05';
 
   try {
     const risposta = await fetch(url, {
@@ -13,13 +13,13 @@ export async function GET() {
       headers: {
         'x-apisports-key': chiave ? chiave.trim() : '', 
       },
-      next: { revalidate: 0 } // Forza l'aggiornamento senza usare la memoria cache
+      next: { revalidate: 0 }
     });
 
     const dati = await risposta.json();
     return NextResponse.json(dati);
     
   } catch (errore) {
-    return NextResponse.json({ messaggio: "Errore di connessione al server API" }, { status: 500 });
+    return NextResponse.json({ messaggio: "Errore di connessione" }, { status: 500 });
   }
 }
