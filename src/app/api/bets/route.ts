@@ -1,70 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { NextResponse } from 'next/server';
 
-// GET - Retrieve all bets
 export async function GET() {
-  try {
-    const bets = await db.bet.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
-    return NextResponse.json({ success: true, bets });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
+  // Prende la chiave dalle variabili d'ambiente di Vercel
+  const chiave = process.env.RAPIDAPI_KEY; 
+  
+  // Indirizzo per vedere tutte le partite in diretta (test più veloce)
+  const url = 'https://v3.football.api-sports.io/fixtures?live=all';
 
-// POST - Create new bet
-export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const bet = await db.bet.create({
-      data: {
-        event: body.event,
-        sport: body.sport,
-        league: body.league,
-        prediction: body.prediction,
-        odds: body.odds,
-        stake: body.stake,
-        status: body.status || 'pending',
-        result: body.result,
-        profitLoss: body.profitLoss,
-        confidence: body.confidence,
-        reasoning: body.reasoning,
-        eventDate: body.eventDate,
-        source: body.source || 'custom'
-      }
+    const risposta = await fetch(url, {
+      method: 'GET',
+      headers: {
+        // La "firma" corretta per API-Sports
+        'x-apisports-key': chiave ? chiave.trim() : '', 
+      },
+      next: { revalidate: 0 } // Forza l'aggiornamento dei dati
     });
-    return NextResponse.json({ success: true, bet });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
 
-// PUT - Update bet
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const bet = await db.bet.update({
-      where: { id: body.id },
-      data: body.updates
-    });
-    return NextResponse.json({ success: true, bet });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-// DELETE - Delete bet
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'ID required' }, { status: 400 });
-    }
-    await db.bet.delete({ where: { id } });
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const dati = await risposta.json();
+    return NextResponse.json(dati);
+    
+  } catch (errore) {
+    return NextResponse.json({ messaggio: "Errore di connessione al server" }, { status: 500 });
   }
 }
