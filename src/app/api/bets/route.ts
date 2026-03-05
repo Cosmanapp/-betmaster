@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   const chiave = process.env.FOOTBALL_API_KEY; 
-  const url = 'https://v3.football.api-sports.io/fixtures?live=all';
+  // Usiamo questo URL che è il più completo per i test
+  const url = 'https://v3.football.api-sports.io/fixtures?date=2026-03-05';
 
   try {
     const risposta = await fetch(url, {
@@ -15,15 +16,16 @@ export async function GET() {
 
     const dati = await risposta.json();
     
-    return NextResponse.json(dati, {
+    // IMPORTANTE: Inviamo SOLO l'array dei match (dati.response)
+    // Questo è quello che le grafiche preconfezionate di solito leggono
+    return NextResponse.json(dati.response || [], {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, x-apisports-key',
       },
     });
 
   } catch (errore) {
-    return NextResponse.json({ messaggio: "Errore di connessione" }, { status: 500 });
+    return NextResponse.json([], { status: 500 });
   }
 }
