@@ -11,9 +11,11 @@ export default function BettingPro() {
       try {
         const res = await fetch('/api/bets');
         const data = await res.json();
-        // Prendiamo le prime 5 partite per non sovraccaricare l'AI
-        const rawMatches = data.data || [];
-        setMatches(rawMatches.slice(0, 5));
+        
+        // CORREZIONE: API-Sports restituisce direttamente l'array o lo abbiamo pulito nel route.ts
+        // Non serve più cercare .data
+        const rawMatches = Array.isArray(data) ? data : (data.response || []);
+        setMatches(rawMatches.slice(0, 10)); // Ne prendiamo 10 invece di 5
       } catch (e) {
         console.error("Errore caricamento dati");
       } finally {
@@ -35,7 +37,7 @@ export default function BettingPro() {
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
           <h2 className="text-2xl font-bold flex items-center gap-2 mb-4 text-zinc-300 uppercase">
-            <Zap className="text-yellow-400 fill-yellow-400" /> Top 5 Pronostici AI
+            <Zap className="text-yellow-400 fill-yellow-400" /> Pronostici AI di Oggi
           </h2>
           
           {loading ? (
@@ -43,21 +45,25 @@ export default function BettingPro() {
               <Loader2 className="animate-spin text-green-500 mb-4" size={48} />
               <p className="text-zinc-500 animate-pulse uppercase font-black">L'AI sta analizzando i match...</p>
             </div>
+          ) : matches.length === 0 ? (
+             <p className="text-zinc-500 italic">Nessun match live o programmato trovato al momento.</p>
           ) : matches.map((match, i) => (
             <div key={i} className="bg-zinc-900 border-2 border-zinc-800 p-5 rounded-2xl flex justify-between items-center border-l-green-500 border-l-8 shadow-lg hover:border-green-400 transition-all">
               <div>
                 <p className="text-zinc-500 text-[10px] font-black uppercase mb-1 tracking-widest">
-                  {match.league_name || 'Football'}
+                  {match.league?.name || 'Football'}
                 </p>
                 <h3 className="text-xl font-black mb-1 uppercase">
-                  {match.home_name} vs {match.away_name}
+                  {match.teams?.home?.name} vs {match.teams?.away?.name}
                 </h3>
                 <p className="text-green-400 font-bold uppercase tracking-widest text-sm italic">
                   Suggerimento: OVER 1.5 GOL
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-black text-white italic">@{match.score || '1.75'}</div>
+                <div className="text-2xl font-black text-white italic">
+                   {match.goals?.home !== null ? `${match.goals.home} - ${match.goals.away}` : '@1.85'}
+                </div>
                 <div className="text-[10px] bg-zinc-800 px-2 py-1 rounded mt-2 font-bold text-zinc-400 uppercase">AI CONFIDENCE: 88%</div>
               </div>
             </div>
