@@ -1,46 +1,19 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { Toaster } from "sonner";
+// All'interno della funzione RootLayout o dove avviene la chiamata:
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+async function getMatches() {
+  try {
+    // Puntiamo al nostro nuovo indirizzo funzionante
+    const res = await fetch('https://betmasterapp-netgasbottle-6310s-projects.vercel.app/api/bets', {
+      next: { revalidate: 0 } // Per avere dati sempre freschi
+    });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+    if (!res.ok) {
+      throw new Error('Errore nel recupero dati');
+    }
 
-export const metadata: Metadata = {
-  title: "BetMaster AI - Suggeritore Scommesse Professionale",
-  description: "Applicazione AI per suggerimenti scommesse sportive con analisi statistiche, gestione bankroll e previsioni in tempo reale.",
-  keywords: ["scommesse", "betting", "AI", "calcio", "sport", "previsioni", "quote", "Enalotto"],
-  authors: [{ name: "BetMaster AI" }],
-  icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>",
-  },
-  openGraph: {
-    title: "BetMaster AI",
-    description: "Suggeritore scommesse professionale con AI",
-    type: "website",
-  },
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="it" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
-        {children}
-        <Toaster />
-      </body>
-    </html>
-  );
+    return res.json();
+  } catch (error) {
+    console.error("Errore fetch layout:", error);
+    return [];
+  }
 }
