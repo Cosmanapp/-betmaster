@@ -1,19 +1,25 @@
-// All'interno della funzione RootLayout o dove avviene la chiamata:
+import './globals.css';
+import { Inter } from 'next/font/google';
 
-async function getMatches() {
-  try {
-    // Puntiamo al nostro nuovo indirizzo funzionante
-    const res = await fetch('https://betmasterapp-netgasbottle-6310s-projects.vercel.app/api/bets', {
-      next: { revalidate: 0 } // Per avere dati sempre freschi
-    });
+const inter = Inter({ subsets: ['latin'] });
 
-    if (!res.ok) {
-      throw new Error('Errore nel recupero dati');
-    }
+export const metadata = {
+  title: 'BetMaster - Pronostici',
+  description: 'Analisi e pronostici sportivi',
+};
 
-    return res.json();
-  } catch (error) {
-    console.error("Errore fetch layout:", error);
-    return [];
-  }
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="it">
+      <body className={inter.className}>
+        <main>
+          {children}
+        </main>
+      </body>
+    </html>
+  );
 }
