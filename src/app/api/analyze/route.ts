@@ -1,30 +1,34 @@
 import { NextResponse } from 'next/server';
 
-export async function GET() {
-  const footballKey = process.env.FOOTBALL_API_KEY;
-
-  // Forziamo la data di domani: 2026-03-06
-  const dataTarget = "2026-03-06";
-  
-  // Cerchiamo tutti i match di domani (senza filtri di lega per ora)
-  const url = `https://v3.football.api-sports.io/fixtures?date=${dataTarget}`;
-
+export async function POST(req: Request) {
   try {
-    const res = await fetch(url, {
-      headers: { 'x-apisports-key': footballKey || '' },
-      next: { revalidate: 0 }
-    });
-    
-    const data = await res.json();
-    
-    // Prendiamo solo i match che non sono ancora iniziati (NS)
-    // Ne prendiamo 8 per avere una bella lista
-    const matches = data.response
-      ?.filter((m: any) => m.fixture.status.short === 'NS')
-      .slice(0, 8) || [];
+    const { home, away, league } = await req.json();
+    const groqKey = process.env.GROQ_API_KEY;
 
-    return NextResponse.json(matches);
+    const prompt = `Sei un esperto scommettitore professionista e analista di dati calcistici.
+    Analizza il match: ${home} vs ${away} (${league}).
+    Considera: forma recente, importanza del match e statistiche generali che conosci su queste squadre.
+    Fornisci un pronostico (es. 1X, Goal, Over 2.5) e una motivazione profonda.
+    
+    Rispondi SOLO con questo schema JSON:
+    {"consiglio": "IL TUO PRONOSTICO", "perche": "LA TUA ANALISI ESPERTA"}`;
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: "llama3-70b-8192", // Usiamo il modello più grande per ragionamenti migliori
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      })
+    });
+
+    const data = await groqRes.json();
+    return NextResponse.json(JSON.parse(data.choices[0].message.content));
   } catch (e) {
-    return NextResponse.json([]);
+    return NextResponse.json({ consiglio: "Analisi...", perche: "Errore nel ragionamento AI" });
   }
 }
