@@ -9,7 +9,7 @@ export default function BettingPro() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch('/api');
+        const res = await fetch('/api/bets');
         const data = await res.json();
         // Prendiamo le prime 5 partite per non sovraccaricare l'AI
         const rawMatches = data.data || [];
