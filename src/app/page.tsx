@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Target, Search, PlusCircle, Trash2, LayoutList, History, Activity, TrendingUp } from 'lucide-react';
+import { Target, Search, PlusCircle, Trash2, LayoutList, History, Trophy } from 'lucide-react';
 
 export default function BettingDashboard() {
   const [view, setView] = useState<'analysis' | 'archive'>('analysis');
@@ -34,25 +34,33 @@ export default function BettingDashboard() {
     load();
   }, []);
 
-  const filteredMatches = matches.filter(m => 
-    m.teams.home.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    m.teams.away.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.league.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMatches = matches.filter(m => {
+    const search = searchTerm.toLowerCase();
+    return m.teams.home.name.toLowerCase().includes(search) || 
+           m.teams.away.name.toLowerCase().includes(search) ||
+           m.league.name.toLowerCase().includes(search);
+  });
+
+  const addToSlip = (m: any) => {
+    if (!betSlip.find(x => x.fixture.id === m.fixture.id)) {
+      setBetSlip([...betSlip, { ...m, user_odds: 1.0, user_tip: m.ai_tip }]);
+    }
+  };
 
   const saveToArchive = () => {
     const totalOddsNum = Number(betSlip.reduce((acc, m) => acc * (m.user_odds || 1), 1).toFixed(2));
     const newBet = {
       id: Date.now(),
-      date: new Date().toLocaleString('it-IT', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
       events: [...betSlip],
       totalOdds: totalOddsNum,
       stake: stake,
       potentialWin: (totalOddsNum * stake).toFixed(2),
       status: 'pending' 
     };
-    setSavedBets([newBet, ...savedBets]);
-    localStorage.setItem('quantbet_archive', JSON.stringify([newBet, ...savedBets]));
+    const updated = [newBet, ...savedBets];
+    setSavedBets(updated);
+    localStorage.setItem('quantbet_archive', JSON.stringify(updated));
     setBetSlip([]);
     setView('archive');
   };
@@ -70,48 +78,59 @@ export default function BettingDashboard() {
   }, { profit: 0 });
 
   return (
-    <div className="min-h-screen bg-[#020203] text-white p-4 md:p-8 flex flex-col lg:flex-row gap-8 font-sans">
+    <div className="min-h-screen bg-[#08080a] text-slate-100 p-4 md:p-8 flex flex-col lg:flex-row gap-8 font-sans">
       <div className="flex-1 max-w-5xl mx-auto w-full">
-        <header className="mb-8 flex flex-col md:flex-row justify-between items-center border-b border-white/10 pb-6 gap-6 text-left">
-          <div onClick={() => setView('analysis')} className="cursor-pointer w-full md:w-auto">
-            <h1 className="text-5xl font-black bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent uppercase tracking-tighter leading-none">QuantBet AI</h1>
-            <p className="text-emerald-500 font-bold text-xs tracking-widest mt-1">SISTEMA PROFESSIONALE DI ANALISI</p>
+        <header className="mb-8 flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-6 gap-6">
+          <div onClick={() => setView('analysis')} className="cursor-pointer text-left w-full md:w-auto">
+            <h1 className="text-3xl font-black bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent uppercase tracking-tighter">QuantBet AI</h1>
+            <p className="text-slate-500 text-[9px] font-bold tracking-[0.3em] uppercase italic">Professional Analytics</p>
           </div>
-          
-          <div className="flex gap-2 bg-white/5 p-2 rounded-3xl border border-white/10 w-full md:w-auto">
-            <button onClick={() => setView('analysis')} className={`flex-1 md:px-8 py-3 rounded-2xl text-xs font-black uppercase transition-all ${view === 'analysis' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-slate-400'}`}>Analisi</button>
-            <button onClick={() => setView('archive')} className={`flex-1 md:px-8 py-3 rounded-2xl text-xs font-black uppercase transition-all ${view === 'archive' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-slate-400'}`}>Archivio ({savedBets.length})</button>
+          <div className="flex gap-2 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 w-full md:w-auto">
+            <button onClick={() => setView('analysis')} className={`flex-1 md:px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${view === 'analysis' ? 'bg-emerald-500 text-black' : 'text-slate-500'}`}>Analisi</button>
+            <button onClick={() => setView('archive')} className={`flex-1 md:px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${view === 'archive' ? 'bg-emerald-500 text-black' : 'text-slate-500'}`}>Archivio ({savedBets.length})</button>
           </div>
         </header>
 
         {view === 'analysis' ? (
           <>
-            <div className="relative mb-8">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
+            <div className="relative mb-8 group text-left">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
               <input 
                 type="text" 
-                placeholder="CERCA SQUADRA O CAMPIONATO..." 
-                className="w-full bg-white/5 border-2 border-white/10 rounded-3xl py-5 pl-14 pr-6 text-sm font-bold uppercase tracking-widest focus:border-emerald-500 outline-none transition-all placeholder:text-slate-700"
+                placeholder="Cerca squadra o campionato..." 
+                className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-sm font-medium focus:border-emerald-500/50 outline-none transition-all"
+                value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
-            {loading ? <div className="py-20 text-emerald-500 font-black animate-pulse text-center text-xl uppercase italic">Calcolo Algoritmi...</div> : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {loading ? <div className="py-20 text-emerald-500 font-bold animate-pulse text-center uppercase tracking-widest text-sm italic">Sincronizzazione loghi e quote...</div> : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                 {filteredMatches.map((m: any, i) => (
-                  <div key={i} className="bg-zinc-900/50 border-2 border-white/5 rounded-[40px] p-8 hover:border-emerald-500/40 transition-all text-left">
-                    <div className="flex justify-between items-start mb-6">
-                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter">{m.league.name}</span>
-                      <button onClick={() => !betSlip.find(x=>x.fixture.id===m.fixture.id) && setBetSlip([...betSlip,{...m,user_odds:1.0, user_tip: m.ai_tip}])} className="bg-emerald-500 text-black p-3 rounded-2xl hover:scale-110 transition-transform"><PlusCircle size={28}/></button>
+                  <div key={i} className="bg-slate-900/30 border border-slate-800 rounded-[28px] p-6 hover:border-emerald-500/30 transition-all">
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="text-[9px] font-black bg-slate-800 text-slate-300 px-3 py-1 rounded-md border border-white/5 uppercase">{m.league.name}</span>
+                      <button onClick={() => addToSlip(m)} className="text-emerald-500 hover:scale-125 transition-transform"><PlusCircle size={32}/></button>
                     </div>
-                    <div className="flex flex-col gap-1 mb-8">
-                      <div className="text-2xl font-black text-white uppercase tracking-tighter leading-tight italic truncate">{m.teams.home.name}</div>
-                      <div className="text-emerald-500 font-black text-xs px-1">VS</div>
-                      <div className="text-2xl font-black text-white uppercase tracking-tighter leading-tight italic truncate">{m.teams.away.name}</div>
+                    
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="flex-1 flex flex-col items-center gap-2">
+                        <img src={m.teams.home.logo} alt="" className="w-12 h-12 object-contain drop-shadow-lg" />
+                        <span className="text-sm font-black text-white uppercase text-center leading-tight">{m.teams.home.name}</span>
+                      </div>
+                      <div className="text-slate-700 font-black text-xs italic">VS</div>
+                      <div className="flex-1 flex flex-col items-center gap-2">
+                        <img src={m.teams.away.logo} alt="" className="w-12 h-12 object-contain drop-shadow-lg" />
+                        <span className="text-sm font-black text-white uppercase text-center leading-tight">{m.teams.away.name}</span>
+                      </div>
                     </div>
-                    <div className="bg-black/40 p-5 rounded-3xl border-l-8 border-emerald-500">
-                      <div className="text-emerald-400 font-black uppercase text-xs mb-2 italic">Consiglio AI: {m.ai_tip}</div>
-                      <p className="text-[15px] text-slate-200 leading-snug font-medium italic">"{m.ai_reason}"</p>
+
+                    <div className="bg-slate-950 p-5 rounded-2xl border-l-4 border-emerald-500 shadow-inner">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Trophy size={14} className="text-emerald-500" />
+                        <span className="text-emerald-400 font-black text-[12px] uppercase italic tracking-wider">{m.ai_tip}</span>
+                      </div>
+                      <p className="text-[14px] text-slate-200 leading-relaxed font-medium italic">"{m.ai_reason}"</p>
                     </div>
                   </div>
                 ))}
@@ -119,31 +138,33 @@ export default function BettingDashboard() {
             )}
           </>
         ) : (
-          <div className="space-y-6 animate-in fade-in duration-500 text-left">
-            <div className="bg-emerald-500 p-8 rounded-[40px] flex justify-between items-center shadow-2xl shadow-emerald-500/10 border-2 border-white/20">
-              <h2 className="text-2xl font-black uppercase tracking-tighter text-black italic">Profitto Totale</h2>
-              <div className="text-4xl font-black text-black">€ {stats.profit.toFixed(2)}</div>
+          <div className="space-y-6 text-left">
+             <div className="flex justify-between items-center bg-slate-900/80 p-6 rounded-[28px] border border-slate-800">
+              <h2 className="text-lg font-black uppercase text-emerald-500 italic">Bilancio Totale</h2>
+              <div className={`text-2xl font-black ${stats.profit >= 0 ? 'text-emerald-400' : 'text-red-500'}`}>€ {stats.profit.toFixed(2)}</div>
             </div>
-            
             {savedBets.map((bet) => (
-              <div key={bet.id} className={`p-8 rounded-[40px] border-4 transition-all ${bet.status === 'won' ? 'border-emerald-500 bg-emerald-500/5' : bet.status === 'lost' ? 'border-red-500 bg-red-500/5' : 'border-zinc-800 bg-zinc-900/40'}`}>
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                  <div>
-                    <p className="text-sm font-black text-white uppercase tracking-widest mb-1">{bet.date}</p>
-                    <p className="text-3xl font-black text-emerald-400 uppercase italic leading-none">WIN: € {bet.potentialWin}</p>
+              <div key={bet.id} className={`p-6 rounded-[28px] border-2 transition-all ${bet.status === 'won' ? 'border-emerald-500/50 bg-emerald-500/5' : bet.status === 'lost' ? 'border-red-500/30 bg-red-500/5' : 'border-slate-800 bg-slate-900/40'}`}>
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[11px] font-black text-white uppercase tracking-widest bg-emerald-500/20 text-emerald-400 px-4 py-1 rounded-full self-start">{bet.date}</span>
+                    <p className="text-2xl font-black text-white italic uppercase leading-none">Vincita: € {bet.potentialWin}</p>
                   </div>
-                  <button onClick={() => toggleStatus(bet.id)} className={`w-full md:w-auto px-10 py-4 rounded-2xl text-[12px] font-black uppercase tracking-widest border-2 transition-all ${bet.status === 'won' ? 'bg-emerald-500 text-black border-white' : bet.status === 'lost' ? 'bg-red-500 text-white border-white' : 'bg-white text-black border-transparent shadow-xl'}`}>
+                  <button onClick={() => toggleStatus(bet.id)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase border-2 transition-all ${bet.status === 'won' ? 'bg-emerald-500 text-black border-white' : bet.status === 'lost' ? 'bg-red-500 text-white border-white' : 'bg-slate-700 text-white border-slate-500'}`}>
                     {bet.status === 'pending' ? '🟡 IN ATTESA' : bet.status === 'won' ? '✅ VINCENTE' : '❌ PERSA'}
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {bet.events.map((e:any, idx:number) => (
-                    <div key={idx} className="bg-black/50 p-4 rounded-2xl border border-white/10 flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-black text-white uppercase mb-1">{e.teams.home.name} - {e.teams.away.name}</p>
-                        <p className="text-xs font-black text-emerald-400 uppercase tracking-widest">{e.user_tip}</p>
+                    <div key={idx} className="bg-black/40 p-4 rounded-2xl border border-white/5 flex items-center gap-4">
+                      <div className="flex -space-x-3">
+                        <img src={e.teams.home.logo} className="w-8 h-8 rounded-full bg-slate-900 p-1 border border-white/10" />
+                        <img src={e.teams.away.logo} className="w-8 h-8 rounded-full bg-slate-900 p-1 border border-white/10" />
                       </div>
-                      <span className="text-xl font-black text-white italic">@{e.user_odds}</span>
+                      <div className="flex-1 truncate">
+                        <p className="text-[11px] font-black text-white uppercase truncate">{e.teams.home.name} - {e.teams.away.name}</p>
+                        <p className="text-xs font-black text-emerald-400">{e.user_tip} @{e.user_odds}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -153,50 +174,49 @@ export default function BettingDashboard() {
         )}
       </div>
 
-      <div className="w-full lg:w-[420px] text-left">
-        <div className="bg-zinc-900 border-4 border-zinc-800 rounded-[50px] p-8 sticky top-8 shadow-2xl ring-2 ring-emerald-500/10">
-          <h2 className="font-black text-3xl uppercase tracking-tighter mb-8 flex gap-3 items-center text-white italic"><LayoutList size={32} className="text-emerald-500"/> My Ticket</h2>
+      <div className="w-full lg:w-[400px] text-left">
+        <div className="bg-slate-900 border border-slate-800 rounded-[40px] p-6 sticky top-8 shadow-2xl">
+          <h2 className="font-black text-xl uppercase tracking-tighter mb-8 flex gap-2 items-center text-white italic"><LayoutList size={24} className="text-emerald-500"/> Schedina</h2>
           {betSlip.length === 0 ? (
-            <div className="py-20 text-center border-4 border-dashed border-zinc-800 rounded-[40px]">
-              <p className="text-zinc-700 text-xs font-black uppercase tracking-widest">Seleziona i match</p>
-            </div>
+            <div className="py-20 text-center border-2 border-dashed border-slate-800 rounded-[32px] text-slate-700 text-[10px] font-black uppercase tracking-widest italic">Seleziona Match</div>
           ) : (
-            <div className="space-y-6">
-              <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-4">
+            <div className="space-y-4">
+              <div className="max-h-[450px] overflow-y-auto pr-1 space-y-4 custom-scrollbar">
                 {betSlip.map((m: any, idx: number) => (
-                  <div key={idx} className="bg-black p-6 rounded-[35px] border-2 border-zinc-800 shadow-xl">
+                  <div key={idx} className="bg-slate-950 p-5 rounded-[30px] border border-slate-800 shadow-xl">
                     <div className="flex justify-between items-center mb-4">
                       <input 
                         type="text" 
                         value={m.user_tip} 
                         onChange={(e) => setBetSlip(betSlip.map(x=>x.fixture.id===m.fixture.id?{...x, user_tip: e.target.value}:x))} 
-                        className="bg-zinc-900 px-4 py-2 rounded-xl text-emerald-400 font-black uppercase text-sm outline-none border-2 border-emerald-500/20 w-32" 
+                        className="bg-slate-900 px-4 py-2 rounded-xl text-emerald-400 font-black uppercase text-xs outline-none border border-emerald-500/20 w-32 focus:border-emerald-500" 
                       />
-                      <button onClick={()=>setBetSlip(betSlip.filter(x=>x.fixture.id!==m.fixture.id))} className="text-red-500 hover:scale-125 transition-transform"><Trash2 size={24}/></button>
+                      <button onClick={()=>setBetSlip(betSlip.filter(x=>x.fixture.id!==m.fixture.id))} className="text-red-500 hover:scale-110"><Trash2 size={20}/></button>
                     </div>
-                    {/* NOMI SQUADRE GIGANTI NELLA SCHEDINA */}
-                    <div className="flex flex-col gap-0.5 mb-5">
-                      <p className="text-lg font-black uppercase text-white tracking-tighter leading-none italic">{m.teams.home.name}</p>
-                      <p className="text-[10px] font-black text-zinc-600">VS</p>
-                      <p className="text-lg font-black uppercase text-white tracking-tighter leading-none italic">{m.teams.away.name}</p>
+                    <div className="flex items-center gap-3 mb-4">
+                      <img src={m.teams.home.logo} className="w-8 h-8 object-contain" />
+                      <div className="flex-1 text-[13px] font-black text-white uppercase leading-tight">
+                        {m.teams.home.name} <br/> {m.teams.away.name}
+                      </div>
+                      <img src={m.teams.away.logo} className="w-8 h-8 object-contain" />
                     </div>
-                    <div className="flex items-center justify-between bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
-                      <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">QUOTA @</span>
-                      <input type="number" step="0.01" value={m.user_odds} onChange={(e)=>setBetSlip(betSlip.map(x=>x.fixture.id===m.fixture.id?{...x,user_odds:parseFloat(e.target.value)||0}:x))} className="bg-transparent text-emerald-400 font-black text-2xl text-right outline-none w-24" />
+                    <div className="flex items-center justify-between bg-slate-900/50 p-3 rounded-2xl border border-slate-800">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Quota</span>
+                      <input type="number" step="0.01" value={m.user_odds} onChange={(e)=>setBetSlip(betSlip.map(x=>x.fixture.id===m.fixture.id?{...x,user_odds:parseFloat(e.target.value)||0}:x))} className="bg-transparent text-emerald-400 font-black text-xl text-right outline-none w-20" />
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="pt-6 border-t-4 border-zinc-800 space-y-6">
-                <div className="flex justify-between items-center bg-black p-5 rounded-3xl border-2 border-zinc-800">
-                  <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">STAKE €</span>
-                  <input type="number" value={stake} onChange={(e)=>setStake(Number(e.target.value))} className="bg-transparent text-right font-black text-emerald-400 outline-none w-24 text-2xl" />
+              <div className="pt-6 border-t border-slate-800 space-y-5">
+                <div className="flex justify-between items-center bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Stake (€)</span>
+                  <input type="number" value={stake} onChange={(e)=>setStake(Number(e.target.value))} className="bg-transparent text-right font-black text-emerald-400 outline-none w-20 text-xl" />
                 </div>
-                <div className="bg-emerald-500 p-8 rounded-[40px] text-center shadow-2xl shadow-emerald-500/30 border-t-4 border-white/20">
-                  <p className="text-xs font-black text-emerald-950 uppercase mb-1 tracking-widest">Vincita Potenziale</p>
-                  <p className="text-5xl font-black text-black tracking-tighter italic leading-none">€ {(Number(betSlip.reduce((acc, m) => acc * (m.user_odds || 1), 1)) * stake).toFixed(2)}</p>
+                <div className="bg-emerald-500 p-6 rounded-[30px] text-center shadow-xl shadow-emerald-500/10">
+                  <p className="text-[10px] font-black text-emerald-950 uppercase mb-1 tracking-widest">Vincita Totale</p>
+                  <p className="text-3xl font-black text-black tracking-tighter italic">€ {(Number(betSlip.reduce((acc, m) => acc * (m.user_odds || 1), 1)) * stake).toFixed(2)}</p>
                 </div>
-                <button onClick={saveToArchive} className="w-full bg-white text-black font-black py-6 rounded-[35px] uppercase text-sm tracking-[0.2em] flex justify-center gap-3 hover:bg-emerald-400 transition-all active:scale-95 shadow-2xl"><History size={24}/> Salva in Archivio</button>
+                <button onClick={saveToArchive} className="w-full bg-white text-black font-black py-5 rounded-[28px] uppercase text-[11px] tracking-[0.2em] flex justify-center gap-2 hover:bg-emerald-400 transition-all shadow-xl active:scale-95"><History size={18}/> Salva in Archivio</button>
               </div>
             </div>
           )}
