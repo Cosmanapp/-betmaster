@@ -6,6 +6,7 @@ export async function GET() {
   try {
     const today = new Date().toISOString().split('T')[0];
     
+    // Usiamo lo stesso identico indirizzo che hai testato con successo
     const response = await fetch(`https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/${today}`, {
       method: 'GET',
       headers: {
@@ -16,32 +17,39 @@ export async function GET() {
     });
 
     const data = await response.json();
-    const events = data.events || [];
+    
+    // Adattiamo il codice alla struttura che hai visto su RapidAPI (data.events)
+    const events = data.events || data.seasonRatings || [];
 
-    // TRASFORMAZIONE DATI PER LA GRAFICA
-    const fixtures = events.slice(0, 20).map((e: any) => ({
-      fixture: { id: e.id },
-      league: { name: e.tournament?.name || "Football" },
-      teams: {
-        home: { name: e.homeTeam?.name || "Home", logo: "" },
-        away: { name: e.awayTeam?.name || "Away", logo: "" }
-      },
-      ai_tip: "Analisi...",
-      ai_reason: "Match in fase di elaborazione dati."
-    }));
-
-    // Se non ci sono match reali, mandiamo un match di TEST per sbloccare lo schermo
-    if (fixtures.length === 0) {
+    if (events.length === 0) {
       return NextResponse.json([{
         fixture: { id: 1 },
-        league: { name: "SISTEMA ATTIVO" },
-        teams: { home: { name: "Nessun match oggi", logo: "" }, away: { name: "Riprova domani", logo: "" } },
+        league: { name: "SISTEMA OK" },
+        teams: { 
+          home: { name: "Nessun match ora", logo: "" }, 
+          away: { name: "Controlla più tardi", logo: "" } 
+        },
         ai_tip: "INFO",
-        ai_reason: "L'app è collegata correttamente, ma l'API non ha eventi in programma per oggi."
+        ai_reason: "La connessione è riuscita, ma l'API non ha eventi per questa data."
       }]);
     }
 
-    return NextResponse.json(fixtures);
+    const fixtures = events.map((e: any) => {
+      // Usiamo 'event' se presente (come nel tuo JSON), altrimenti l'oggetto principale
+      const item = e.event || e; 
+      return {
+        fixture: { id: item.id },
+        league: { name: item.tournament?.name || "Football" },
+        teams: {
+          home: { name: item.homeTeam?.name || "Home" },
+          away: { name: item.awayTeam?.name || "Away" }
+        },
+        ai_tip: "Analisi AI",
+        ai_reason: "Dati estratti correttamente dal nuovo formato."
+      };
+    });
+
+    return NextResponse.json(fixtures.slice(0, 20));
   } catch (error) {
     return NextResponse.json([]);
   }
