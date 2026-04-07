@@ -4,10 +4,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Usiamo lo stesso identico indirizzo che hai testato con successo
-    const response = await fetch(`https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/${today}`, {
+    const response = await fetch(`https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/${new Date().toISOString().split('T')[0]}`, {
       method: 'GET',
       headers: {
         'x-rapidapi-host': 'sportapi7.p.rapidapi.com',
@@ -16,41 +13,39 @@ export async function GET() {
       cache: 'no-store'
     });
 
-    const data = await response.json();
+    const rawData = await response.json();
     
-    // Adattiamo il codice alla struttura che hai visto su RapidAPI (data.events)
-    const events = data.events || data.seasonRatings || [];
+    // Se l'API risponde ma l'array è vuoto, creiamo noi i dati
+    // così capiamo se il problema è l'API o il collegamento
+    const results = (rawData.events || []).map((e: any) => ({
+      fixture: { id: e.id || Math.random() },
+      league: { name: e.tournament?.name || "Calcio" },
+      teams: {
+        home: { name: e.homeTeam?.name || "Squadra Casa" },
+        away: { name: e.awayTeam?.name || "Squadra Ospite" }
+      },
+      ai_tip: "INFO",
+      ai_reason: "Dati caricati dall'API."
+    }));
 
-    if (events.length === 0) {
+    if (results.length === 0) {
       return NextResponse.json([{
-        fixture: { id: 1 },
-        league: { name: "SISTEMA OK" },
-        teams: { 
-          home: { name: "Nessun match ora", logo: "" }, 
-          away: { name: "Controlla più tardi", logo: "" } 
-        },
-        ai_tip: "INFO",
-        ai_reason: "La connessione è riuscita, ma l'API non ha eventi per questa data."
+        fixture: { id: 999 },
+        league: { name: "DIAGNOSTICA" },
+        teams: { home: { name: "API COLLEGATA", logo: "" }, away: { name: "MA SENZA MATCH", logo: "" } },
+        ai_tip: "ERRORE DATI",
+        ai_reason: "L'API risponde correttamente (chiave OK) ma non ha partite di calcio per oggi."
       }]);
     }
 
-    const fixtures = events.map((e: any) => {
-      // Usiamo 'event' se presente (come nel tuo JSON), altrimenti l'oggetto principale
-      const item = e.event || e; 
-      return {
-        fixture: { id: item.id },
-        league: { name: item.tournament?.name || "Football" },
-        teams: {
-          home: { name: item.homeTeam?.name || "Home" },
-          away: { name: item.awayTeam?.name || "Away" }
-        },
-        ai_tip: "Analisi AI",
-        ai_reason: "Dati estratti correttamente dal nuovo formato."
-      };
-    });
-
-    return NextResponse.json(fixtures.slice(0, 20));
+    return NextResponse.json(results);
   } catch (error) {
-    return NextResponse.json([]);
+    return NextResponse.json([{ 
+      fixture: { id: 0 }, 
+      league: { name: "ERRORE CONNESSIONE" }, 
+      teams: { home: { name: "Controlla Chiave", logo: "" }, away: { name: "Su Vercel", logo: "" } },
+      ai_tip: "OFFLINE",
+      ai_reason: "Il server non riesce a parlare con RapidAPI."
+    }]);
   }
 }
