@@ -1,70 +1,40 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { NextResponse } from 'next/server';
 
-// GET - Retrieve all bets
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const searchTerm = searchParams.get('search')?.toLowerCase();
+
+  // Usiamo OGGI invece di domani per testare se arrivano dati
+  const today = new Date().toISOString().split('T')[0];
+
   try {
-    const bets = await db.bet.findMany({
-      orderBy: { createdAt: 'desc' }
+    const response = await fetch(`https://v3.football.api-sports.io/fixtures?date=${today}`, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-host': 'v3.football.api-sports.io',
+        'x-rapidapi-key': process.env.FOOTBALL_API_KEY || '',
+      },
+      cache: 'no-store' 
     });
-    return NextResponse.json({ success: true, bets });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
 
-// POST - Create new bet
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const bet = await db.bet.create({
-      data: {
-        event: body.event,
-        sport: body.sport,
-        league: body.league,
-        prediction: body.prediction,
-        odds: body.odds,
-        stake: body.stake,
-        status: body.status || 'pending',
-        result: body.result,
-        profitLoss: body.profitLoss,
-        confidence: body.confidence,
-        reasoning: body.reasoning,
-        eventDate: body.eventDate,
-        source: body.source || 'custom'
-      }
-    });
-    return NextResponse.json({ success: true, bet });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
+    const data = await response.json();
+    let fixtures = data.response || [];
 
-// PUT - Update bet
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const bet = await db.bet.update({
-      where: { id: body.id },
-      data: body.updates
-    });
-    return NextResponse.json({ success: true, bet });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-// DELETE - Delete bet
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'ID required' }, { status: 400 });
+    if (searchTerm) {
+      fixtures = fixtures.filter((f: any) => 
+        f.teams.home.name.toLowerCase().includes(searchTerm) ||
+        f.teams.away.name.toLowerCase().includes(searchTerm) ||
+        f.league.name.toLowerCase().includes(searchTerm)
+      );
+    } else {
+      // Se non trova le top league, non restituire un array vuoto, dai i primi 20 match
+      const topLeagues = [135, 39, 140, 78, 61, 2, 3];
+      let filtered = fixtures.filter((f: any) => topLeagues.includes(f.league.id));
+      fixtures = filtered.length > 0 ? filtered : fixtures.slice(0, 20);
     }
-    await db.bet.delete({ where: { id } });
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json(fixtures);
+  } catch (error) {
+    return NextResponse.json({ error: 'Errore API' }, { status: 500 });
   }
 }
