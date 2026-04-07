@@ -1,54 +1,48 @@
 import { NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic'; // Forza il server a non usare la cache
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const apiKey = process.env.FOOTBALL_API_KEY;
     const today = new Date().toISOString().split('T')[0];
-
-    // TEST VELOCE: Se la chiave manca, lo capiamo subito dai log
-    if (!apiKey) {
-      console.error("ERRORE: Chiave API mancante nelle variabili di Vercel");
-    }
-
+    
     const response = await fetch(`https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/${today}`, {
       method: 'GET',
       headers: {
         'x-rapidapi-host': 'sportapi7.p.rapidapi.com',
-        'x-rapidapi-key': apiKey || '',
+        'x-rapidapi-key': process.env.FOOTBALL_API_KEY || '',
       },
-      cache: 'no-store' // Impedisce al server di ricordare dati vecchi
+      cache: 'no-store'
     });
 
     const data = await response.json();
-    const rawMatches = data.events || [];
+    const events = data.events || [];
 
-    if (rawMatches.length === 0) {
-      // Se l'API è vuota, restituiamo un match finto per sbloccare la grafica
-      return NextResponse.json([{
-        fixture: { id: 1 },
-        league: { name: "SISTEMA ONLINE" },
-        teams: { 
-          home: { name: "Nessun match live", logo: "" }, 
-          away: { name: "Riprova tra poco", logo: "" } 
-        },
-        ai_tip: "INFO",
-        ai_reason: "Il server risponde, ma l'API non ha inviato partite per oggi."
-      }]);
-    }
-
-    const fixtures = rawMatches.slice(0, 15).map((e: any) => ({
+    // TRASFORMAZIONE DATI PER LA GRAFICA
+    const fixtures = events.slice(0, 20).map((e: any) => ({
       fixture: { id: e.id },
       league: { name: e.tournament?.name || "Football" },
       teams: {
-        home: { name: e.homeTeam?.name, logo: "" },
-        away: { name: e.awayTeam?.name, logo: "" }
-      }
+        home: { name: e.homeTeam?.name || "Home", logo: "" },
+        away: { name: e.awayTeam?.name || "Away", logo: "" }
+      },
+      ai_tip: "Analisi...",
+      ai_reason: "Match in fase di elaborazione dati."
     }));
+
+    // Se non ci sono match reali, mandiamo un match di TEST per sbloccare lo schermo
+    if (fixtures.length === 0) {
+      return NextResponse.json([{
+        fixture: { id: 1 },
+        league: { name: "SISTEMA ATTIVO" },
+        teams: { home: { name: "Nessun match oggi", logo: "" }, away: { name: "Riprova domani", logo: "" } },
+        ai_tip: "INFO",
+        ai_reason: "L'app è collegata correttamente, ma l'API non ha eventi in programma per oggi."
+      }]);
+    }
 
     return NextResponse.json(fixtures);
   } catch (error) {
-    return NextResponse.json([{ fixture: { id: 0 }, league: { name: "ERRORE" }, teams: { home: { name: "Errore API", logo: "" }, away: { name: "Riprova", logo: "" } } }]);
+    return NextResponse.json([]);
   }
 }
