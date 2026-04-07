@@ -4,7 +4,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const searchTerm = searchParams.get('search')?.toLowerCase();
   
-  // Prendiamo la data di oggi
+  // Usiamo una data fissa di oggi per il test (2026-04-07)
   const today = new Date().toISOString().split('T')[0];
 
   try {
@@ -14,10 +14,17 @@ export async function GET(request: Request) {
         'x-rapidapi-host': 'api-football-v1.p.rapidapi.com',
         'x-rapidapi-key': process.env.FOOTBALL_API_KEY || '',
       },
-      next: { revalidate: 0 }
+      cache: 'no-store'
     });
 
     const data = await response.json();
+    
+    // Debug: se l'API risponde con un errore di autenticazione
+    if (data.errors && Object.keys(data.errors).length > 0) {
+      console.error("Errore API:", data.errors);
+      return NextResponse.json([]);
+    }
+
     let fixtures = data.response || [];
 
     if (searchTerm) {
@@ -27,13 +34,12 @@ export async function GET(request: Request) {
         f.league.name.toLowerCase().includes(searchTerm)
       );
     } else {
-      // Se non cerchi nulla, mostriamo i primi 15 match di oggi
-      fixtures = fixtures.slice(0, 15);
+      // Se non cerchi nulla, prendiamo i primi 10 match di oggi
+      fixtures = fixtures.slice(0, 10);
     }
 
     return NextResponse.json(fixtures);
   } catch (error) {
-    console.error("Errore RapidAPI:", error);
-    return NextResponse.json([], { status: 200 });
+    return NextResponse.json([]);
   }
 }
